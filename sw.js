@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ciriguapp-static-v5";
+const CACHE_VERSION = "ciriguapp-static-v6";
 
 const STATIC_ASSETS = [
     "./",
@@ -9,10 +9,12 @@ const STATIC_ASSETS = [
     "./productos.html",
     "./ventas.html",
     "./cierre.html",
+    "./cierre-mensual.html",
     "./gastos.html",
     "./historial.html",
     "./historial-diario.html",
     "./historial-cierres.html",
+    "./historial-mensual.html",
     "./recibo.html",
     "./reciboMesa.html",
     "./style.css",

@@ -584,3 +584,103 @@ async function obtenerCierresSupabase(){
         return cierre !== null;
     });
 }
+
+function normalizarResumenMensualDesdeSupabase(resumen){
+    if(!resumen || typeof resumen !== "object"){
+        return null;
+    }
+
+    let periodo = resumen.periodo || {};
+
+    return {
+        periodo: {
+            id: periodo.id || null,
+            estado: periodo.estado || "abierto",
+            inicio: periodo.inicio || null,
+            nombre: periodo.nombre || "Periodo mensual"
+        },
+        ventas: Number(resumen.ventas || 0),
+        gastos: Number(resumen.gastos || 0),
+        resultado: Number(resumen.resultado || 0),
+        cantidadVentas: Number(resumen.cantidad_ventas || resumen.cantidadVentas || 0),
+        cantidadGastos: Number(resumen.cantidad_gastos || resumen.cantidadGastos || 0),
+        ventasDetalle: resumen.ventas_detalle || resumen.ventasDetalle || [],
+        gastosDetalle: resumen.gastos_detalle || resumen.gastosDetalle || []
+    };
+}
+
+function normalizarCierreMensualDesdeSupabase(cierre){
+    if(!cierre || typeof cierre !== "object"){
+        return null;
+    }
+
+    let timestamp = cierre.timestamp || cierre.created_at || new Date().toISOString();
+    let fechaCierre = new Date(timestamp);
+    if(isNaN(fechaCierre.getTime())){
+        fechaCierre = new Date();
+    }
+
+    return {
+        id: cierre.id,
+        periodoId: cierre.periodo_id || null,
+        nombrePeriodo: cierre.nombre_periodo || "Periodo mensual",
+        inicioPeriodo: cierre.inicio_periodo || null,
+        finPeriodo: cierre.fin_periodo || null,
+        fecha: formatearFechaSupabase(cierre.fecha || timestamp),
+        hora: cierre.hora || fechaCierre.toLocaleTimeString(),
+        timestamp: fechaCierre.toISOString(),
+        ventas: Number(cierre.ventas || 0),
+        gastos: Number(cierre.gastos || 0),
+        resultado: Number(cierre.resultado || 0),
+        cantidadVentas: Number(cierre.cantidad_ventas || 0),
+        cantidadGastos: Number(cierre.cantidad_gastos || 0),
+        ventasDetalle: cierre.ventas_detalle || [],
+        gastosDetalle: cierre.gastos_detalle || []
+    };
+}
+
+async function obtenerResumenMensualSupabase(){
+    await asegurarSesionCirigua();
+
+    const { data, error } = await supabaseClient
+        .rpc("obtener_resumen_mensual_cirigua");
+
+    if(error){
+        throw error;
+    }
+
+    return normalizarResumenMensualDesdeSupabase(data);
+}
+
+async function cerrarMesSupabase(periodoId, idempotencyKey){
+    await asegurarSesionCirigua();
+
+    const { data, error } = await supabaseClient
+        .rpc("cerrar_mes_cirigua", {
+            p_periodo_id: periodoId,
+            p_idempotency_key: idempotencyKey || crearIdempotencyKeyCirigua("cierre-mensual")
+        });
+
+    if(error){
+        throw error;
+    }
+
+    return normalizarCierreMensualDesdeSupabase(data && data.cierre ? data.cierre : data);
+}
+
+async function obtenerCierresMensualesSupabase(){
+    await asegurarSesionCirigua();
+
+    const { data, error } = await supabaseClient
+        .from("cierres_mensuales")
+        .select("id,periodo_id,nombre_periodo,inicio_periodo,fin_periodo,fecha,hora,timestamp,ventas,gastos,resultado,cantidad_ventas,cantidad_gastos,ventas_detalle,gastos_detalle")
+        .order("timestamp", { ascending: true });
+
+    if(error){
+        throw error;
+    }
+
+    return (data || []).map(normalizarCierreMensualDesdeSupabase).filter(function(cierre){
+        return cierre !== null;
+    });
+}
