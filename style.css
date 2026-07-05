@@ -1392,6 +1392,40 @@ input::placeholder{
     margin-top:4px;
 }
 
+.selector-administrador-cierre{
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:14px;
+}
+
+.selector-administrador-cierre label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:140px;
+    justify-content:center;
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.18);
+    border-radius:16px;
+    padding:14px 18px;
+    font-size:18px;
+    font-weight:700;
+    color:white;
+}
+
+.selector-administrador-cierre input{
+    width:18px;
+    height:18px;
+}
+
+.acciones-header{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
 @media (max-width: 680px) {
     .encabezado-dashboard,
     .panel-filtros{
@@ -1403,6 +1437,13 @@ input::placeholder{
     }
     .acciones-cierre-mensual .guardar,
     .acciones-cierre-mensual .volver{
+        width:100%;
+    }
+    .acciones-header,
+    .acciones-header .volver{
+        width:100%;
+    }
+    .selector-administrador-cierre label{
         width:100%;
     }
 }

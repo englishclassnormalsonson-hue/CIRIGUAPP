@@ -721,6 +721,10 @@ begin
       and cierre_id is null
       and activo = true;
 
+    if coalesce(v_facturas, 0) = 0 and coalesce(v_gastos, 0) = 0 then
+        raise exception 'no hay movimientos para cerrar';
+    end if;
+
     select coalesce(sum(
         case
             when coalesce(cliente, 0) = 0
@@ -1311,6 +1315,172 @@ on public.cierres_mensuales
 for insert to authenticated
 with check (true);
 
+-- Administrador responsable del cierre diario.
+alter table public.cierres_caja
+add column if not exists administrador text;
+
+alter table public.cierres_caja
+drop constraint if exists cierres_caja_administrador_check;
+
+alter table public.cierres_caja
+add constraint cierres_caja_administrador_check
+check (administrador is null or administrador in ('Antonio', 'Duvel'));
+
+create or replace function public.cerrar_caja_cirigua(p_administrador text)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+    v_periodo record;
+    v_ventas numeric;
+    v_gastos numeric;
+    v_facturas integer;
+    v_clientes integer;
+    v_promedio numeric;
+    v_producto_top text;
+    v_gastos_detalle jsonb;
+    v_cierre record;
+    v_nuevo_periodo uuid;
+begin
+    if p_administrador not in ('Antonio', 'Duvel') then
+        raise exception 'administrador de cierre invalido';
+    end if;
+
+    select *
+    into v_periodo
+    from public.caja_periodos
+    where estado = 'abierto'
+    order by inicio desc
+    limit 1
+    for update;
+
+    if not found then
+        insert into public.caja_periodos (estado)
+        values ('abierto')
+        returning * into v_periodo;
+    end if;
+
+    select coalesce(sum(total), 0), count(*)
+    into v_ventas, v_facturas
+    from public.ventas
+    where "timestamp" >= v_periodo.inicio
+      and cierre_id is null;
+
+    select coalesce(sum(valor), 0)
+    into v_gastos
+    from public.gastos
+    where periodo_id = v_periodo.id
+      and cierre_id is null
+      and activo = true;
+
+    select coalesce(sum(
+        case
+            when coalesce(v.cliente, 0) = 0
+            then greatest((select count(*) from jsonb_object_keys(coalesce(v.productos_por_cliente, '{}'::jsonb))), 1)
+            else 1
+        end
+    ), 0)
+    into v_clientes
+    from public.ventas v
+    where v."timestamp" >= v_periodo.inicio
+      and v.cierre_id is null;
+
+    v_promedio := case when v_facturas > 0 then v_ventas / v_facturas else 0 end;
+
+    with items as (
+        select key as nombre, sum((value->>'cantidad')::numeric) as cantidad
+        from public.ventas v,
+        lateral jsonb_each(coalesce(v.productos, '{}'::jsonb))
+        where v."timestamp" >= v_periodo.inicio
+          and v.cierre_id is null
+          and jsonb_typeof(value) = 'object'
+        group by key
+        order by cantidad desc
+        limit 1
+    )
+    select nombre into v_producto_top from items;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'concepto', concepto,
+        'valor', valor,
+        'timestamp', "timestamp"
+    ) order by created_at), '[]'::jsonb)
+    into v_gastos_detalle
+    from public.gastos
+    where periodo_id = v_periodo.id
+      and cierre_id is null
+      and activo = true;
+
+    insert into public.cierres_caja (
+        fecha,
+        hora,
+        "timestamp",
+        periodo_id,
+        administrador,
+        ventas,
+        gastos,
+        utilidad,
+        facturas,
+        clientes,
+        producto_top,
+        promedio,
+        gastos_detalle,
+        inicio_periodo,
+        fin_periodo
+    )
+    values (
+        now(),
+        to_char(now(), 'HH24:MI:SS'),
+        now(),
+        v_periodo.id,
+        p_administrador,
+        v_ventas,
+        v_gastos,
+        v_ventas - v_gastos,
+        v_facturas,
+        v_clientes,
+        coalesce(v_producto_top, '-'),
+        v_promedio,
+        v_gastos_detalle,
+        v_periodo.inicio,
+        now()
+    )
+    returning * into v_cierre;
+
+    update public.ventas
+    set cierre_id = v_cierre.id::text
+    where "timestamp" >= v_periodo.inicio
+      and cierre_id is null;
+
+    update public.gastos
+    set cierre_id = v_cierre.id::text
+    where periodo_id = v_periodo.id
+      and cierre_id is null;
+
+    update public.caja_periodos
+    set estado = 'cerrado', fin = now()
+    where id = v_periodo.id;
+
+    insert into public.caja_periodos (estado)
+    values ('abierto')
+    returning id into v_nuevo_periodo;
+
+    return jsonb_build_object(
+        'ok', true,
+        'cierre', to_jsonb(v_cierre),
+        'nuevo_periodo_id', v_nuevo_periodo
+    );
+end;
+$$;
+
+drop function if exists public.cerrar_caja_cirigua();
+
+revoke execute on function public.cerrar_caja_cirigua(text) from public, anon;
+grant execute on function public.cerrar_caja_cirigua(text) to authenticated;
+
 revoke all privileges on table
     public.mesas,
     public.clientes_mesa,
@@ -1362,7 +1532,7 @@ revoke execute on function public.agregar_producto_cliente_cirigua(integer, inte
 revoke execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) from public, anon;
 revoke execute on function public.crear_gasto_cirigua(text, numeric) from public, anon;
 revoke execute on function public.eliminar_gasto_cirigua(text) from public, anon;
-revoke execute on function public.cerrar_caja_cirigua() from public, anon;
+revoke execute on function public.cerrar_caja_cirigua(text) from public, anon;
 
 grant execute on function public.cirigua_ocupacion_abierta(integer) to authenticated;
 grant execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) to authenticated;
@@ -1372,7 +1542,7 @@ grant execute on function public.agregar_producto_cliente_cirigua(integer, integ
 grant execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) to authenticated;
 grant execute on function public.crear_gasto_cirigua(text, numeric) to authenticated;
 grant execute on function public.eliminar_gasto_cirigua(text) to authenticated;
-grant execute on function public.cerrar_caja_cirigua() to authenticated;
+grant execute on function public.cerrar_caja_cirigua(text) to authenticated;
 
 do $$
 declare

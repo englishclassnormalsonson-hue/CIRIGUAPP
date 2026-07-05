@@ -23,7 +23,7 @@
             <h1>📈 Historial de Cierres</h1>
             <p>Consulta los cierres de caja realizados con su desglose y detalle de gastos.</p>
         </div>
-        <button class="volver boton-principal" onclick="window.location.href='index.html'">⬅ Volver</button>
+        <button class="volver boton-principal" onclick="window.location.href='index.html'">🏠 Inicio</button>
     </div>
 
     <div class="historial-filtro-panel">
@@ -55,12 +55,16 @@
     }
 
     function construirTarjeta(cierre) {
+        let administrador =
+            cierre.administrador || 'No registrado';
+
         return `
             <article class="tarjeta-cierre">
                 <div class="tarjeta-cierre-header">
                     <div>
                         <strong>${cierre.fecha}</strong>
                         <span>${cierre.hora}</span>
+                        <span>Cerrado por: ${administrador}</span>
                     </div>
                     <span class="historial-cierre-badge">Facturas: ${Number(cierre.facturas)}</span>
                 </div>
@@ -78,6 +82,7 @@
                         <div class="historial-cierre-detail-block">
                             <p><strong>Fecha de cierre:</strong> ${cierre.fecha}</p>
                             <p><strong>Hora de cierre:</strong> ${cierre.hora}</p>
+                            <p><strong>Administrador:</strong> ${administrador}</p>
                             <p><strong>Timestamp:</strong> ${cierre.timestamp || 'N/A'}</p>
                         </div>
                         <div class="historial-cierre-detail-block">

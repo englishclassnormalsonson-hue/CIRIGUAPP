@@ -551,15 +551,18 @@ function normalizarCierreDesdeSupabase(cierre){
         promedio: Number(cierre.promedio || 0),
         gastosDetalle: cierre.gastos_detalle || cierre.gastosDetalle || [],
         inicioPeriodo: cierre.inicio_periodo || null,
-        finPeriodo: cierre.fin_periodo || null
+        finPeriodo: cierre.fin_periodo || null,
+        administrador: cierre.administrador || cierre.administradorCierre || null
     };
 }
 
-async function cerrarCajaSupabase(){
+async function cerrarCajaSupabase(administrador){
     await asegurarSesionCirigua();
 
     const { data, error } = await supabaseClient
-        .rpc("cerrar_caja_cirigua");
+        .rpc("cerrar_caja_cirigua", {
+            p_administrador: administrador
+        });
 
     if(error){
         throw error;
@@ -573,7 +576,7 @@ async function obtenerCierresSupabase(){
 
     const { data, error } = await supabaseClient
         .from("cierres_caja")
-        .select("id,created_at,fecha,hora,timestamp,ventas,gastos,utilidad,facturas,clientes,producto_top,promedio,gastos_detalle,inicio_periodo,fin_periodo")
+        .select("id,created_at,fecha,hora,timestamp,administrador,ventas,gastos,utilidad,facturas,clientes,producto_top,promedio,gastos_detalle,inicio_periodo,fin_periodo")
         .order("timestamp", { ascending: true });
 
     if(error){

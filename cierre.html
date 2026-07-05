@@ -50,6 +50,24 @@
 
     </div>
 
+    <div class="total-mesa administrador-cierre">
+
+        ADMINISTRADOR DEL CIERRE
+
+        <div class="selector-administrador-cierre" role="radiogroup" aria-label="Administrador del cierre">
+            <label>
+                <input type="radio" name="administradorCierre" value="Antonio">
+                Antonio
+            </label>
+
+            <label>
+                <input type="radio" name="administradorCierre" value="Duvel">
+                Duvel
+            </label>
+        </div>
+
+    </div>
+
 <button class="guardar"
     onclick="cerrarCaja(this)">
 
@@ -60,7 +78,7 @@
     <button class="volver"
     onclick="window.location.href='index.html'">
 
-        ⬅ Volver
+        🏠 Inicio
 
     </button>
 
@@ -141,9 +159,23 @@ async function cargarResumenCierre(){
 function cerrarCaja(boton){
     return ejecutarAccionCritica(boton, async function(){
 
+    let administradorSeleccionado =
+        document.querySelector("input[name='administradorCierre']:checked");
+
+    if(!administradorSeleccionado){
+        alert("Seleccione quién realiza el cierre diario: Antonio o Duvel.");
+        return false;
+    }
+
+    let administrador =
+        administradorSeleccionado.value;
+
     let confirmar =
         confirm(
-            "¿Desea cerrar la caja del día?"
+            "¿Confirma el cierre del día realizado por " + administrador + "?\n\n" +
+            "Ventas: $" + ventas.toLocaleString() + "\n" +
+            "Gastos: $" + gastos.toLocaleString() + "\n" +
+            "Utilidad: $" + utilidad.toLocaleString()
         );
 
     if(!confirmar){
@@ -152,7 +184,7 @@ function cerrarCaja(boton){
 
     if(typeof cerrarCajaSupabase === "function"){
         try{
-            let cierreSupabase = await cerrarCajaSupabase();
+            let cierreSupabase = await cerrarCajaSupabase(administrador);
             let cierresActuales = safeParse(localStorage.getItem("cierresCaja"), []) || [];
             if(!Array.isArray(cierresActuales)){
                 cierresActuales = [];
