@@ -75,12 +75,12 @@ body{
     right:16px;
     z-index:20;
     width:auto;
-    height:44px;
-    min-width:132px;
-    padding:0 18px;
-    border-radius:12px;
+    height:58px;
+    min-width:170px;
+    padding:0 24px;
+    border-radius:16px;
     background:#374151;
-    font-size:15px;
+    font-size:18px;
     box-shadow:0 4px 10px rgba(0,0,0,0.35);
 }
 
@@ -130,12 +130,30 @@ h2{
     color:white;
 }
 
+.plano-scroll{
+    max-width:1320px;
+    margin:auto;
+    overflow-x:auto;
+    padding:12px 8px 20px;
+}
+
 #mesas{
     display:grid;
-    grid-template-columns:repeat(5,1fr);
-    gap:20px;
-    max-width:1200px;
-    margin:auto;
+    grid-template-columns:repeat(12, minmax(74px, 1fr));
+    grid-template-rows:repeat(9, minmax(76px, auto));
+    gap:14px;
+    min-width:980px;
+    max-width:1320px;
+    margin:0 auto;
+    padding:20px;
+    border:2px solid rgba(255,255,255,0.14);
+    border-radius:24px;
+    background:
+        linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px),
+        rgba(15,23,42,0.34);
+    background-size:34px 34px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06), 0 14px 30px rgba(0,0,0,0.25);
 }
 
 button{
@@ -156,6 +174,85 @@ button{
 
 button:hover{
     transform:scale(1.05);
+}
+
+.mesa-plano{
+    width:100%;
+    min-height:78px;
+    height:100%;
+    border-radius:18px;
+    font-size:20px;
+    line-height:1.1;
+    position:relative;
+    z-index:2;
+}
+
+.plano-referencia{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:60px;
+    border-radius:16px;
+    padding:10px;
+    text-align:center;
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:0;
+    color:#e5e7eb;
+    border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.08);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.plano-referencia.entrada{
+    background:rgba(22,163,74,0.24);
+    color:#bbf7d0;
+}
+
+.plano-referencia.entrada::before{
+    content:"↓";
+    margin-right:8px;
+    font-size:24px;
+}
+
+.plano-referencia.barra{
+    background:rgba(146,64,14,0.72);
+    color:#ffedd5;
+    border-color:rgba(251,191,36,0.28);
+}
+
+.plano-referencia.barra:empty::before{
+    content:"";
+}
+
+.plano-referencia.pasillo{
+    background:rgba(148,163,184,0.14);
+    color:#e2e8f0;
+    border-style:dashed;
+}
+
+.plano-referencia.pilastra{
+    background:rgba(31,41,55,0.88);
+    color:#cbd5e1;
+}
+
+.plano-referencia.nevera{
+    background:rgba(14,165,233,0.22);
+    color:#bae6fd;
+}
+
+.plano-referencia.bano{
+    min-height:70px;
+}
+
+.plano-referencia.mujeres{
+    background:rgba(219,39,119,0.22);
+    color:#fbcfe8;
+}
+
+.plano-referencia.hombres{
+    background:rgba(37,99,235,0.24);
+    color:#bfdbfe;
 }
 
 .libre{
@@ -194,13 +291,21 @@ button:hover{
 
 @media(max-width:768px){
 
-    #mesas{
-        grid-template-columns:repeat(2,1fr);
+    body{
+        padding:14px;
     }
 
     button{
         height:80px;
         font-size:18px;
+    }
+
+    .logout-btn{
+        top:10px;
+        right:10px;
+        min-width:150px;
+        height:54px;
+        font-size:17px;
     }
 
     h1{
@@ -212,6 +317,29 @@ button:hover{
         max-width:300px;
         height:56px;
         font-size:19px;
+    }
+
+    .plano-scroll{
+        margin:0 -8px;
+        padding:8px 8px 18px;
+    }
+
+    #mesas{
+        min-width:900px;
+        grid-template-columns:repeat(12, minmax(66px, 1fr));
+        grid-template-rows:repeat(9, minmax(70px, auto));
+        gap:10px;
+        padding:14px;
+    }
+
+    .mesa-plano{
+        min-height:72px;
+        font-size:18px;
+    }
+
+    .plano-referencia{
+        font-size:13px;
+        min-height:54px;
     }
 
 }
@@ -1123,9 +1251,9 @@ input::placeholder{
 
 .inicio{
 
-    width:160px;
+    width:190px;
 
-    height:60px;
+    height:68px;
 
     background:#f59e0b;
 
@@ -1135,7 +1263,7 @@ input::placeholder{
 
     border-radius:15px;
 
-    font-size:24px;
+    font-size:26px;
 
     font-weight:bold;
 
@@ -1247,8 +1375,9 @@ input::placeholder{
 .boton-principal{
     border:none;
     border-radius:16px;
-    padding:14px 20px;
-    font-size:16px;
+    min-height:58px;
+    padding:16px 24px;
+    font-size:18px;
     font-weight:700;
     cursor:pointer;
     transition:transform 0.25s ease, background 0.25s ease;

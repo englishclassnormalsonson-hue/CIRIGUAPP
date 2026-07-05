@@ -39,7 +39,11 @@
 
     <h2>Seleccione una mesa</h2>
 
-    <div id="mesas">
+    <div class="plano-scroll" aria-label="Plano de mesas de El Cirigua">
+
+        <div id="mesas">
+
+        </div>
 
     </div>
 
@@ -107,6 +111,104 @@ onclick="window.location.href='historial-mensual.html'">
 const contenedorMesas =
     document.getElementById("mesas");
 
+const DISTRIBUCION_MESAS_CIRIGUA = [
+    { tipo: "mesa", numero: 1, columna: 1, fila: 1 },
+    { tipo: "mesa", numero: 2, columna: 1, fila: 2 },
+    { tipo: "mesa", numero: 3, columna: 1, fila: 3 },
+    { tipo: "mesa", numero: 4, columna: 1, fila: 4 },
+    { tipo: "mesa", numero: 5, columna: 1, fila: 5 },
+    { tipo: "mesa", numero: 6, columna: 1, fila: 6 },
+    { tipo: "mesa", numero: 7, columna: 1, fila: 7 },
+
+    { tipo: "mesa", numero: 8, columna: 3, fila: 1 },
+    { tipo: "mesa", numero: 9, columna: 3, fila: 2 },
+    { tipo: "mesa", numero: 10, columna: 3, fila: 3 },
+    { tipo: "mesa", numero: 11, columna: 3, fila: 4 },
+    { tipo: "mesa", numero: 12, columna: 3, fila: 5 },
+    { tipo: "mesa", numero: 13, columna: 3, fila: 6 },
+    { tipo: "mesa", numero: 14, columna: 3, fila: 7 },
+    { tipo: "mesa", numero: 15, columna: 3, fila: 8 },
+
+    { tipo: "referencia", texto: "ENTRADA", clase: "entrada", columna: "5 / span 2", fila: 1 },
+    { tipo: "mesa", numero: 16, columna: 5, fila: 2 },
+    { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 5, fila: 3 },
+    { tipo: "referencia", texto: "NEVERA", clase: "nevera", columna: 5, fila: 4 },
+    { tipo: "mesa", numero: 17, columna: 5, fila: 5 },
+
+    { tipo: "referencia", texto: "PASILLO", clase: "pasillo", columna: "6 / span 2", fila: 5 },
+    { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 5, fila: 6 },
+    { tipo: "mesa", numero: 18, columna: 6, fila: 6 },
+    { tipo: "mesa", numero: 19, columna: 6, fila: 7 },
+    { tipo: "mesa", numero: 20, columna: 6, fila: 8 },
+
+    { tipo: "mesa", numero: 21, columna: 8, fila: 6 },
+    { tipo: "mesa", numero: 22, columna: 8, fila: 7 },
+    { tipo: "mesa", numero: 23, columna: 8, fila: 8 },
+    { tipo: "mesa", numero: 24, columna: 8, fila: 9 },
+
+    { tipo: "referencia", texto: "", clase: "barra", columna: "9 / span 4", fila: "3 / span 2" },
+    { tipo: "mesa", numero: 25, columna: 10, fila: 6 },
+    { tipo: "mesa", numero: 26, columna: 10, fila: 7 },
+    { tipo: "mesa", numero: 27, columna: 10, fila: 8 },
+
+    { tipo: "mesa", numero: 28, columna: 12, fila: 6 },
+    { tipo: "mesa", numero: 29, columna: 12, fila: 7 },
+    { tipo: "mesa", numero: 30, columna: 12, fila: 8 },
+    { tipo: "referencia", texto: "BAÑO MUJERES", clase: "bano mujeres", columna: "9 / span 2", fila: 9 },
+    { tipo: "referencia", texto: "BAÑO HOMBRES", clase: "bano hombres", columna: "11 / span 2", fila: 9 }
+];
+
+function crearReferenciaPlano(item){
+    let referencia =
+        document.createElement("div");
+
+    referencia.className =
+        "plano-referencia " + item.clase;
+
+    referencia.textContent =
+        item.texto;
+
+    referencia.style.gridColumn =
+        item.columna;
+
+    referencia.style.gridRow =
+        item.fila;
+
+    return referencia;
+}
+
+function crearBotonMesa(mesa){
+    let boton =
+        document.createElement("button");
+
+    let estadoMesa =
+        mesa.estado || "libre";
+
+    boton.classList.add(
+        "mesa-plano",
+        estadoMesa
+    );
+
+    boton.dataset.mesa =
+        String(mesa.numero);
+
+    boton.innerHTML =
+        "Mesa " + mesa.numero;
+
+    boton.setAttribute(
+        "aria-label",
+        "Abrir Mesa " + mesa.numero + " - " + estadoMesa
+    );
+
+    boton.onclick = function(){
+
+        window.location.href =
+            "clientes.html?mesa=" + mesa.numero;
+    };
+
+    return boton;
+}
+
 async function mostrarMesas(){
 
     try{
@@ -116,26 +218,34 @@ async function mostrarMesas(){
 
         contenedorMesas.innerHTML = "";
 
+        const mesasPorNumero = {};
+
         mesas.forEach(function(mesa){
+            mesasPorNumero[Number(mesa.numero)] = mesa;
+        });
+
+        DISTRIBUCION_MESAS_CIRIGUA.forEach(function(item){
+            if(item.tipo === "referencia"){
+                contenedorMesas.appendChild(
+                    crearReferenciaPlano(item)
+                );
+                return;
+            }
+
+            const mesa =
+                mesasPorNumero[Number(item.numero)] || {
+                    numero: item.numero,
+                    estado: "libre"
+                };
 
             let boton =
-                document.createElement("button");
+                crearBotonMesa(mesa);
 
-            let estadoMesa =
-                mesa.estado || "libre";
+            boton.style.gridColumn =
+                item.columna;
 
-            boton.classList.add(
-                estadoMesa
-            );
-
-            boton.innerHTML =
-                "Mesa " + mesa.numero;
-
-            boton.onclick = function(){
-
-                window.location.href =
-                    "clientes.html?mesa=" + mesa.numero;
-            };
+            boton.style.gridRow =
+                item.fila;
 
             contenedorMesas.appendChild(boton);
         });
