@@ -67,7 +67,112 @@
             window.location.replace(LOGIN_PAGE);
         });
 
-        document.body.appendChild(button);
+        return button;
+    }
+
+    function isIndexPage(){
+        const page = window.location.pathname.split("/").pop() || DEFAULT_PAGE;
+        return page === DEFAULT_PAGE;
+    }
+
+    function buildHomeButton(){
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "inicio app-nav-btn app-home-btn";
+        button.textContent = "🏠 Inicio";
+        button.addEventListener("click", function(){
+            window.location.href = DEFAULT_PAGE;
+        });
+        return button;
+    }
+
+    function normalizeHeader(session){
+        if(isLoginPage){
+            return;
+        }
+
+        const header = document.querySelector(".encabezado");
+        const logoutButton = renderLogout(session);
+
+        if(!header){
+            if(logoutButton){
+                document.body.appendChild(logoutButton);
+            }
+            return;
+        }
+
+        if(header.classList.contains("app-header")){
+            if(logoutButton){
+                const right = header.querySelector(".app-header-right");
+                if(right){
+                    right.appendChild(logoutButton);
+                }
+            }
+            return;
+        }
+
+        const left = document.createElement("div");
+        const center = document.createElement("div");
+        const right = document.createElement("div");
+
+        left.className = "app-header-left";
+        center.className = "app-header-center";
+        right.className = "app-header-right";
+
+        const homeCandidates = Array.from(document.querySelectorAll("button")).filter(function(button){
+            const onclick = button.getAttribute("onclick") || "";
+            return onclick.indexOf("index.html") !== -1 &&
+                !button.classList.contains("inicio-recibo") &&
+                !button.closest(".menu-admin");
+        });
+
+        let homeButton = null;
+        if(!isIndexPage()){
+            homeButton = homeCandidates[0] || buildHomeButton();
+            homeButton.classList.add("app-nav-btn", "app-home-btn");
+            left.appendChild(homeButton);
+        }
+
+        Array.from(header.childNodes).forEach(function(node){
+            if(node.nodeType === Node.TEXT_NODE && node.textContent.trim() === ""){
+                return;
+            }
+            center.appendChild(node);
+        });
+
+        if(isIndexPage()){
+            const refreshButton = center.querySelector("#refrescarMesas");
+            if(refreshButton){
+                refreshButton.classList.add("app-nav-btn");
+                right.appendChild(refreshButton);
+            }
+        }
+
+        if(logoutButton){
+            logoutButton.classList.add("app-nav-btn");
+            right.appendChild(logoutButton);
+        }
+
+        header.innerHTML = "";
+        header.classList.add("app-header");
+        if(isIndexPage()){
+            header.classList.add("app-header-home");
+        }
+        header.appendChild(left);
+        header.appendChild(center);
+        header.appendChild(right);
+
+        homeCandidates.slice(1).forEach(function(button){
+            if(button.closest(".acciones-volver")){
+                button.remove();
+            }
+        });
+
+        document.querySelectorAll(".barra-superior").forEach(function(bar){
+            if(bar.textContent.trim() === ""){
+                bar.remove();
+            }
+        });
     }
 
     async function setupLoginPage(){
@@ -112,7 +217,7 @@
     async function setupProtectedPage(){
         try{
             const session = await requireCiriguaSession();
-            renderLogout(session);
+            normalizeHeader(session);
             document.documentElement.classList.add("auth-ready");
         }catch(error){
             document.documentElement.classList.add("auth-blocked");

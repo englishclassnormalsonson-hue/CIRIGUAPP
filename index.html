@@ -21,7 +21,7 @@
     <div class="encabezado">
 
         <div class="logo">
-            🪶
+            <img src="LOGOINICIO1.jpeg" alt="Logo El Cirigua Café Bar">
         </div>
 
         <h1>EL CIRIGUA</h1>
@@ -165,7 +165,7 @@ const DISTRIBUCION_MESAS_CIRIGUA = [
     { tipo: "referencia", texto: "NEVERA", clase: "nevera", columna: 5, fila: 4, ancho: 2 },
     { tipo: "mesa", numero: 17, columna: 5, fila: 5 },
 
-    { tipo: "referencia", texto: "PASILLITO", clase: "pasillo", columna: 6, fila: 6, ancho: 2 },
+    { tipo: "referencia", texto: "PASILLO", clase: "pasillo", columna: 6, fila: 6, ancho: 2 },
     { tipo: "mesa", numero: 18, columna: 6, fila: 7 },
     { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 6, fila: 8 },
     { tipo: "mesa", numero: 19, columna: 6, fila: 9 },
@@ -176,7 +176,6 @@ const DISTRIBUCION_MESAS_CIRIGUA = [
     { tipo: "mesa", numero: 23, columna: 8, fila: 9 },
     { tipo: "mesa", numero: 24, columna: 8, fila: 10 },
 
-    { tipo: "referencia", texto: "BARRA DONDE SE ATIENDE", clase: "barra", columna: 7, fila: 1, ancho: 6, alto: 5 },
     { tipo: "mesa", numero: 25, columna: 10, fila: 7 },
     { tipo: "mesa", numero: 26, columna: 10, fila: 8 },
     { tipo: "mesa", numero: 27, columna: 10, fila: 9 },
@@ -324,7 +323,7 @@ function crearBotonMesa(mesa){
         String(mesa.numero);
 
     boton.innerHTML =
-        "Mesa " + mesa.numero;
+        String(mesa.numero);
 
     boton.setAttribute(
         "aria-label",

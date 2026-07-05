@@ -1265,7 +1265,7 @@ grant execute on function public.cerrar_mes_cirigua(uuid, text) to authenticated
 revoke all on public.periodos_mensuales from anon;
 revoke all on public.cierres_mensuales from anon;
 revoke delete on public.periodos_mensuales from authenticated;
-revoke update, delete on public.cierres_mensuales from authenticated;
+revoke update, delete, truncate, references, trigger on public.cierres_mensuales from authenticated;
 revoke execute on function public.cirigua_nombre_periodo_mensual(timestamptz) from public, anon;
 revoke execute on function public.cirigua_periodo_mensual_abierto() from public, anon;
 revoke execute on function public.obtener_resumen_mensual_cirigua() from public, anon;

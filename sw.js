@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ciriguapp-static-v9";
+const CACHE_VERSION = "ciriguapp-static-v10";
 
 const STATIC_ASSETS = [
     "./",
@@ -25,6 +25,7 @@ const STATIC_ASSETS = [
     "./ventas.js",
     "./script.js",
     "./manifest.webmanifest",
+    "./LOGOINICIO1.jpeg",
     "./logo.png",
     "./icons/icon-192.png",
     "./icons/icon-512.png",
