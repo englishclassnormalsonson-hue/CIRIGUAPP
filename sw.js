@@ -1,8 +1,9 @@
-const CACHE_VERSION = "ciriguapp-static-v2";
+const CACHE_VERSION = "ciriguapp-static-v5";
 
 const STATIC_ASSETS = [
     "./",
     "./index.html",
+    "./login.html",
     "./clientes.html",
     "./pedido.html",
     "./productos.html",
@@ -17,6 +18,7 @@ const STATIC_ASSETS = [
     "./style.css",
     "./utils.js",
     "./supabase.js",
+    "./auth.js",
     "./pwa.js",
     "./ventas.js",
     "./script.js",

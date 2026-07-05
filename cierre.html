@@ -66,6 +66,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script src="utils.js"></script>
 <script src="ventas.js"></script>
 <script>
@@ -180,7 +181,7 @@ function cerrarCaja(boton){
     });
 }
 
-cargarResumenCierre();
+ciriguaAuthReady.then(cargarResumenCierre);
 
 </script>
 

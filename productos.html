@@ -75,6 +75,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.js"></script>
+    <script src="auth.js"></script>
     <script src="utils.js"></script>
     <script>
 
@@ -557,27 +558,29 @@ async function iniciarProductos(){
     mostrarProductos();
 }
 
-iniciarProductos();
+ciriguaAuthReady.then(function(){
+    iniciarProductos();
 
-if(supabaseClient && typeof supabaseClient.channel === "function"){
-    supabaseClient
-        .channel("cirigua-productos")
-        .on("postgres_changes", {
-            event: "*",
-            schema: "public",
-            table: "productos"
-        }, function(){
-            iniciarProductos();
-        })
-        .on("postgres_changes", {
-            event: "*",
-            schema: "public",
-            table: "categorias"
-        }, function(){
-            iniciarProductos();
-        })
-        .subscribe();
-}
+    if(supabaseClient && typeof supabaseClient.channel === "function"){
+        supabaseClient
+            .channel("cirigua-productos")
+            .on("postgres_changes", {
+                event: "*",
+                schema: "public",
+                table: "productos"
+            }, function(){
+                iniciarProductos();
+            })
+            .on("postgres_changes", {
+                event: "*",
+                schema: "public",
+                table: "categorias"
+            }, function(){
+                iniciarProductos();
+            })
+            .subscribe();
+    }
+});
 
 </script>
 

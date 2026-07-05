@@ -91,6 +91,7 @@ onclick="window.location.href='historial-cierres.html'">
 <script src="utils.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script>
 
 const contenedorMesas =
@@ -164,20 +165,22 @@ async function refrescarPantallaPrincipal(boton){
     }
 }
 
-mostrarMesas();
+ciriguaAuthReady.then(function(){
+    mostrarMesas();
 
-if(supabaseClient && typeof supabaseClient.channel === "function"){
-    supabaseClient
-        .channel("cirigua-mesas")
-        .on("postgres_changes", {
-            event: "*",
-            schema: "public",
-            table: "mesas"
-        }, function(){
-            mostrarMesas();
-        })
-        .subscribe();
-}
+    if(supabaseClient && typeof supabaseClient.channel === "function"){
+        supabaseClient
+            .channel("cirigua-mesas")
+            .on("postgres_changes", {
+                event: "*",
+                schema: "public",
+                table: "mesas"
+            }, function(){
+                mostrarMesas();
+            })
+            .subscribe();
+    }
+});
 
 </script>
 <script src="pwa.js"></script>

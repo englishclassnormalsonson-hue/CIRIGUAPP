@@ -828,25 +828,6 @@ end;
 $$;
 
 grant usage on schema public to anon, authenticated;
-grant select, insert, update, delete on public.mesas to anon, authenticated;
-grant select, insert, update, delete on public.clientes_mesa to anon, authenticated;
-grant select, insert, update, delete on public.categorias to anon, authenticated;
-grant select, insert, update, delete on public.productos to anon, authenticated;
-grant select, insert, update, delete on public.ventas to anon, authenticated;
-grant select, insert, update, delete on public.gastos to anon, authenticated;
-grant select, insert, update, delete on public.cierres_caja to anon, authenticated;
-grant select, insert, update on public.ocupaciones_mesa to anon, authenticated;
-grant select, insert, update on public.facturas to anon, authenticated;
-grant select, insert, update on public.caja_periodos to anon, authenticated;
-grant execute on function public.cirigua_ocupacion_abierta(integer) to anon, authenticated;
-grant execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) to anon, authenticated;
-grant execute on function public.guardar_pedido_cliente_cirigua(integer, integer, jsonb) to anon, authenticated;
-grant execute on function public.actualizar_estado_mesa_cirigua(integer) to anon, authenticated;
-grant execute on function public.agregar_producto_cliente_cirigua(integer, integer, text, numeric, integer) to anon, authenticated;
-grant execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) to anon, authenticated;
-grant execute on function public.crear_gasto_cirigua(text, numeric) to anon, authenticated;
-grant execute on function public.eliminar_gasto_cirigua(text) to anon, authenticated;
-grant execute on function public.cerrar_caja_cirigua() to anon, authenticated;
 
 alter table public.mesas enable row level security;
 alter table public.clientes_mesa enable row level security;
@@ -864,6 +845,86 @@ declare
     tabla text;
 begin
     foreach tabla in array array[
+        'auditoria',
+        'papelera',
+        'configuracion'
+    ] loop
+        if to_regclass('public.' || tabla) is not null then
+            execute format('alter table public.%I enable row level security', tabla);
+        end if;
+    end loop;
+end;
+$$;
+
+revoke all privileges on table
+    public.mesas,
+    public.clientes_mesa,
+    public.categorias,
+    public.productos,
+    public.ventas,
+    public.gastos,
+    public.cierres_caja,
+    public.ocupaciones_mesa,
+    public.facturas,
+    public.caja_periodos
+from anon, authenticated;
+
+do $$
+declare
+    tabla text;
+begin
+    foreach tabla in array array[
+        'auditoria',
+        'papelera',
+        'configuracion'
+    ] loop
+        if to_regclass('public.' || tabla) is not null then
+            execute format('revoke all privileges on table public.%I from anon, authenticated', tabla);
+        end if;
+    end loop;
+end;
+$$;
+
+revoke all privileges on all sequences in schema public from anon;
+grant usage, select on all sequences in schema public to authenticated;
+
+grant select, insert, update on public.categorias to authenticated;
+grant select, insert, update on public.productos to authenticated;
+grant select, update on public.mesas to authenticated;
+grant select, insert, update, delete on public.clientes_mesa to authenticated;
+grant select, insert, update on public.ventas to authenticated;
+grant select, insert, update on public.gastos to authenticated;
+grant select, insert on public.cierres_caja to authenticated;
+grant select, insert, update on public.ocupaciones_mesa to authenticated;
+grant select, insert, update on public.facturas to authenticated;
+grant select, insert, update on public.caja_periodos to authenticated;
+
+revoke execute on function public.cirigua_ocupacion_abierta(integer) from public, anon;
+revoke execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) from public, anon;
+revoke execute on function public.guardar_pedido_cliente_cirigua(integer, integer, jsonb) from public, anon;
+revoke execute on function public.actualizar_estado_mesa_cirigua(integer) from public, anon;
+revoke execute on function public.agregar_producto_cliente_cirigua(integer, integer, text, numeric, integer) from public, anon;
+revoke execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) from public, anon;
+revoke execute on function public.crear_gasto_cirigua(text, numeric) from public, anon;
+revoke execute on function public.eliminar_gasto_cirigua(text) from public, anon;
+revoke execute on function public.cerrar_caja_cirigua() from public, anon;
+
+grant execute on function public.cirigua_ocupacion_abierta(integer) to authenticated;
+grant execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) to authenticated;
+grant execute on function public.guardar_pedido_cliente_cirigua(integer, integer, jsonb) to authenticated;
+grant execute on function public.actualizar_estado_mesa_cirigua(integer) to authenticated;
+grant execute on function public.agregar_producto_cliente_cirigua(integer, integer, text, numeric, integer) to authenticated;
+grant execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) to authenticated;
+grant execute on function public.crear_gasto_cirigua(text, numeric) to authenticated;
+grant execute on function public.eliminar_gasto_cirigua(text) to authenticated;
+grant execute on function public.cerrar_caja_cirigua() to authenticated;
+
+do $$
+declare
+    tabla text;
+    politica text;
+begin
+    foreach tabla in array array[
         'mesas',
         'clientes_mesa',
         'categorias',
@@ -873,59 +934,65 @@ begin
         'cierres_caja',
         'ocupaciones_mesa',
         'facturas',
-        'caja_periodos'
+        'caja_periodos',
+        'auditoria',
+        'papelera',
+        'configuracion'
     ] loop
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_select'
-        ) then
-            execute format(
-                'create policy cirigua_anon_select on public.%I for select to anon, authenticated using (true)',
-                tabla
-            );
-        end if;
-
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_insert'
-        ) then
-            execute format(
-                'create policy cirigua_anon_insert on public.%I for insert to anon, authenticated with check (true)',
-                tabla
-            );
-        end if;
-
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_update'
-        ) then
-            execute format(
-                'create policy cirigua_anon_update on public.%I for update to anon, authenticated using (true) with check (true)',
-                tabla
-            );
-        end if;
-
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_delete'
-        ) then
-            execute format(
-                'create policy cirigua_anon_delete on public.%I for delete to anon, authenticated using (true)',
-                tabla
-            );
+        if to_regclass('public.' || tabla) is not null then
+            foreach politica in array array[
+                'cirigua_anon_select',
+                'cirigua_anon_insert',
+                'cirigua_anon_update',
+                'cirigua_anon_delete',
+                'ciriguapp_' || tabla,
+                'cirigua_auth_select',
+                'cirigua_auth_insert',
+                'cirigua_auth_update',
+                'cirigua_auth_delete'
+            ] loop
+                execute format('drop policy if exists %I on public.%I', politica, tabla);
+            end loop;
         end if;
     end loop;
 end;
 $$;
+
+create policy cirigua_auth_select on public.categorias for select to authenticated using (true);
+create policy cirigua_auth_insert on public.categorias for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.categorias for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.productos for select to authenticated using (true);
+create policy cirigua_auth_insert on public.productos for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.productos for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.mesas for select to authenticated using (true);
+create policy cirigua_auth_update on public.mesas for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.clientes_mesa for select to authenticated using (true);
+create policy cirigua_auth_insert on public.clientes_mesa for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.clientes_mesa for update to authenticated using (true) with check (true);
+create policy cirigua_auth_delete on public.clientes_mesa for delete to authenticated using (true);
+
+create policy cirigua_auth_select on public.ventas for select to authenticated using (true);
+create policy cirigua_auth_insert on public.ventas for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.ventas for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.gastos for select to authenticated using (true);
+create policy cirigua_auth_insert on public.gastos for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.gastos for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.cierres_caja for select to authenticated using (true);
+create policy cirigua_auth_insert on public.cierres_caja for insert to authenticated with check (true);
+
+create policy cirigua_auth_select on public.ocupaciones_mesa for select to authenticated using (true);
+create policy cirigua_auth_insert on public.ocupaciones_mesa for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.ocupaciones_mesa for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.facturas for select to authenticated using (true);
+create policy cirigua_auth_insert on public.facturas for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.facturas for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.caja_periodos for select to authenticated using (true);
+create policy cirigua_auth_insert on public.caja_periodos for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.caja_periodos for update to authenticated using (true) with check (true);

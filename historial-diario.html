@@ -42,6 +42,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.js"></script>
+    <script src="auth.js"></script>
     <script src="utils.js"></script>
     <script>
     function formatoMoneda(valor) {
@@ -147,7 +148,7 @@
     }
 
     document.getElementById('filtroFecha').addEventListener('change', cargarHistorialDiario);
-    cargarHistorialDiario();
+    ciriguaAuthReady.then(cargarHistorialDiario);
     </script>
 
 <script src="pwa.js"></script>

@@ -56,6 +56,7 @@ href="style.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script src="utils.js"></script>
 <script>
 
@@ -192,7 +193,7 @@ function eliminarGasto(boton, indice){
     });
 }
 
-cargarGastos();
+ciriguaAuthReady.then(cargarGastos);
 
 </script>
 

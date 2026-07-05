@@ -7,7 +7,17 @@ const supabaseClient = supabase.createClient(
     SUPABASE_PUBLISHABLE_KEY
 );
 
+window.supabaseClient = supabaseClient;
+
+async function asegurarSesionCirigua(){
+    if(typeof window !== "undefined" && typeof window.requireCiriguaSession === "function"){
+        await window.requireCiriguaSession();
+    }
+}
+
 async function obtenerCategoriasSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("categorias")
         .select("id,nombre,orden,activo")
@@ -21,6 +31,8 @@ async function obtenerCategoriasSupabase(){
 }
 
 async function obtenerProductosSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("productos")
         .select("id,nombre,precio,categoria_id,activo,orden")
@@ -34,6 +46,8 @@ async function obtenerProductosSupabase(){
 }
 
 async function crearCategoriaSupabase(nombre, orden){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("categorias")
         .insert({
@@ -52,6 +66,8 @@ async function crearCategoriaSupabase(nombre, orden){
 }
 
 async function crearProductoSupabase(nombre, precio, categoriaId, orden){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("productos")
         .insert({
@@ -72,6 +88,8 @@ async function crearProductoSupabase(nombre, precio, categoriaId, orden){
 }
 
 async function editarProductoSupabase(id, nombre, precio, categoriaId){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("productos")
         .update({
@@ -92,6 +110,8 @@ async function editarProductoSupabase(id, nombre, precio, categoriaId){
 }
 
 async function cambiarEstadoProductoSupabase(id, activo){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("productos")
         .update({
@@ -121,6 +141,8 @@ function formatearFechaSupabase(fechaValor){
 }
 
 async function guardarPedidoClienteSupabase(mesa, numeroCliente, productos){
+    await asegurarSesionCirigua();
+
     const { data: dataRpc, error: errorRpc } = await supabaseClient
         .rpc("guardar_pedido_cliente_cirigua", {
             p_mesa: Number(mesa),
@@ -136,6 +158,8 @@ async function guardarPedidoClienteSupabase(mesa, numeroCliente, productos){
 }
 
 async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, precio, cantidad){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .rpc("agregar_producto_cliente_cirigua", {
             p_mesa: Number(mesa),
@@ -153,6 +177,8 @@ async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, preci
 }
 
 async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantidad){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .rpc("quitar_producto_cliente_cirigua", {
             p_mesa: Number(mesa),
@@ -169,6 +195,8 @@ async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantid
 }
 
 async function leerPedidoClienteSupabase(mesa, numeroCliente){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("clientes_mesa")
         .select("productos")
@@ -184,6 +212,8 @@ async function leerPedidoClienteSupabase(mesa, numeroCliente){
 }
 
 async function borrarPedidoClienteSupabase(mesa, numeroCliente){
+    await asegurarSesionCirigua();
+
     const { error } = await supabaseClient
         .from("clientes_mesa")
         .delete()
@@ -196,6 +226,8 @@ async function borrarPedidoClienteSupabase(mesa, numeroCliente){
 }
 
 async function crearClienteMesaSupabase(mesa, numeroCliente){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("clientes_mesa")
         .upsert({
@@ -217,6 +249,8 @@ async function crearClienteMesaSupabase(mesa, numeroCliente){
 }
 
 async function obtenerClientesMesaSupabase(mesa){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("clientes_mesa")
         .select("numero_cliente,productos")
@@ -231,6 +265,8 @@ async function obtenerClientesMesaSupabase(mesa){
 }
 
 async function borrarTodosClientesMesaSupabase(mesa){
+    await asegurarSesionCirigua();
+
     const { error } = await supabaseClient
         .from("clientes_mesa")
         .delete()
@@ -242,6 +278,8 @@ async function borrarTodosClientesMesaSupabase(mesa){
 }
 
 async function cambiarEstadoMesaSupabase(mesa, estado){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("mesas")
         .update({
@@ -260,6 +298,8 @@ async function cambiarEstadoMesaSupabase(mesa, estado){
 }
 
 async function obtenerMesasSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("mesas")
         .select("numero,estado,updated_at")
@@ -273,6 +313,8 @@ async function obtenerMesasSupabase(){
 }
 
 async function actualizarEstadoMesaPorConsumosSupabase(mesa){
+    await asegurarSesionCirigua();
+
     const { data: estadoRpc, error: errorRpc } = await supabaseClient
         .rpc("actualizar_estado_mesa_cirigua", {
             p_mesa: Number(mesa)
@@ -322,6 +364,8 @@ function normalizarVentaDesdeSupabase(venta){
 }
 
 async function registrarVentaSupabase(datosFactura){
+    await asegurarSesionCirigua();
+
     if(!datosFactura || typeof datosFactura !== "object"){
         throw new Error("Venta inválida");
     }
@@ -351,6 +395,8 @@ async function registrarVentaSupabase(datosFactura){
 }
 
 async function obtenerVentasSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("ventas")
         .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
@@ -366,6 +412,8 @@ async function obtenerVentasSupabase(){
 }
 
 async function obtenerUltimaVentaSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("ventas")
         .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
@@ -381,6 +429,8 @@ async function obtenerUltimaVentaSupabase(){
 }
 
 async function obtenerVentaPorFacturaSupabase(factura){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("ventas")
         .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
@@ -395,6 +445,8 @@ async function obtenerVentaPorFacturaSupabase(factura){
 }
 
 async function obtenerVentasPorOcupacionSupabase(ocupacionId){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("ventas")
         .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
@@ -427,6 +479,8 @@ function normalizarGastoDesdeSupabase(gasto){
 }
 
 async function crearGastoSupabase(concepto, valor){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .rpc("crear_gasto_cirigua", {
             p_concepto: concepto,
@@ -441,6 +495,8 @@ async function crearGastoSupabase(concepto, valor){
 }
 
 async function obtenerGastosSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("gastos")
         .select("id,created_at,fecha,concepto,valor,timestamp,periodo_id,cierre_id,activo")
@@ -458,6 +514,8 @@ async function obtenerGastosSupabase(){
 }
 
 async function eliminarGastoSupabase(id){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .rpc("eliminar_gasto_cirigua", {
             p_id: id
@@ -498,6 +556,8 @@ function normalizarCierreDesdeSupabase(cierre){
 }
 
 async function cerrarCajaSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .rpc("cerrar_caja_cirigua");
 
@@ -509,6 +569,8 @@ async function cerrarCajaSupabase(){
 }
 
 async function obtenerCierresSupabase(){
+    await asegurarSesionCirigua();
+
     const { data, error } = await supabaseClient
         .from("cierres_caja")
         .select("id,created_at,fecha,hora,timestamp,ventas,gastos,utilidad,facturas,clientes,producto_top,promedio,gastos_detalle,inicio_periodo,fin_periodo")
