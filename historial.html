@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial de Ventas</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CIRIGUAPP">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
 </head>
 
 <body>
@@ -16,6 +24,13 @@
 
         <p>Registro de Ventas</p>
 
+        <button class="volver boton-principal"
+        onclick="window.location.href='index.html'">
+
+            🏠 Inicio
+
+        </button>
+
     </div>
 
     <div id="historialVentas">
@@ -24,15 +39,9 @@
 
     </div>
 
-    <button class="volver"
-    onclick="window.location.href='index.html'">
-
-        ⬅ Volver
-
-    </button>
-
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script src="utils.js"></script>
 <script src="ventas.js"></script>
 <script>
@@ -89,10 +98,11 @@ if(historial.length > 0){
 }
 }
 
-cargarHistorialVentas();
+ciriguaAuthReady.then(cargarHistorialVentas);
 
 </script>
 
+<script src="pwa.js"></script>
 </body>
 
 </html>

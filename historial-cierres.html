@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial de Cierres</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CIRIGUAPP">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
 </head>
 
 <body>
@@ -15,7 +23,7 @@
             <h1>📈 Historial de Cierres</h1>
             <p>Consulta los cierres de caja realizados con su desglose y detalle de gastos.</p>
         </div>
-        <button class="volver boton-principal" onclick="window.location.href='index.html'">⬅ Volver</button>
+        <button class="volver boton-principal" onclick="window.location.href='index.html'">🏠 Inicio</button>
     </div>
 
     <div class="historial-filtro-panel">
@@ -29,6 +37,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.js"></script>
+    <script src="auth.js"></script>
     <script src="utils.js"></script>
     <script>
     function formatoMoneda(valor) {
@@ -46,12 +55,16 @@
     }
 
     function construirTarjeta(cierre) {
+        let administrador =
+            cierre.administrador || 'No registrado';
+
         return `
             <article class="tarjeta-cierre">
                 <div class="tarjeta-cierre-header">
                     <div>
                         <strong>${cierre.fecha}</strong>
                         <span>${cierre.hora}</span>
+                        <span>Cerrado por: ${administrador}</span>
                     </div>
                     <span class="historial-cierre-badge">Facturas: ${Number(cierre.facturas)}</span>
                 </div>
@@ -69,6 +82,7 @@
                         <div class="historial-cierre-detail-block">
                             <p><strong>Fecha de cierre:</strong> ${cierre.fecha}</p>
                             <p><strong>Hora de cierre:</strong> ${cierre.hora}</p>
+                            <p><strong>Administrador:</strong> ${administrador}</p>
                             <p><strong>Timestamp:</strong> ${cierre.timestamp || 'N/A'}</p>
                         </div>
                         <div class="historial-cierre-detail-block">
@@ -112,9 +126,10 @@
     }
 
     document.getElementById('filtroFecha').addEventListener('change', cargarHistorialCierres);
-    cargarHistorialCierres();
+    ciriguaAuthReady.then(cargarHistorialCierres);
     </script>
 
+<script src="pwa.js"></script>
 </body>
 
 </html>

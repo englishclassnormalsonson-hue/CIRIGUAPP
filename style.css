@@ -1,26 +1,122 @@
 body{
     margin:0;
-    padding:20px;
+    padding:16px;
     background:linear-gradient(135deg,#0f172a 0%,#111827 45%,#1f2937 100%);
     color:white;
     font-family:Arial, sans-serif;
 }
 
+.login-page{
+    min-height:100vh;
+    min-height:100dvh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:22px;
+    box-sizing:border-box;
+}
+
+.login-shell{
+    width:100%;
+    max-width:500px;
+}
+
+.login-panel{
+    text-align:center;
+    padding:36px;
+    border:1px solid rgba(255,255,255,0.14);
+    border-radius:28px;
+    background:rgba(15,23,42,0.58);
+    box-shadow:0 24px 60px rgba(0,0,0,0.36);
+    backdrop-filter:blur(14px);
+}
+
+.login-form{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    margin-top:30px;
+    text-align:left;
+}
+
+.login-form label{
+    color:#e5e7eb;
+    font-weight:bold;
+    font-size:18px;
+}
+
+.login-form input{
+    width:100%;
+    min-height:58px;
+    box-sizing:border-box;
+    border:none;
+    border-radius:15px;
+    padding:0 18px;
+    font-size:20px;
+}
+
+.login-submit{
+    width:100%;
+    height:62px;
+    margin-top:10px;
+    background:#16a34a;
+    border-radius:16px;
+    font-size:24px;
+    font-weight:900;
+}
+
+.login-submit:hover{
+    background:#15803d;
+}
+
+.login-submit:active,
+.app-nav-btn:active,
+.girar-mapa-btn:active,
+.refrescar-btn:active{
+    transform:scale(0.98);
+}
+
+.login-submit:disabled,
+.logout-btn:disabled{
+    opacity:0.7;
+    cursor:not-allowed;
+    transform:none;
+}
+
+.login-message{
+    min-height:24px;
+    margin:6px 0 0;
+    color:#fecaca;
+    font-size:16px;
+    text-align:center;
+}
+
+.logout-btn{
+    width:auto;
+    height:54px;
+    min-width:168px;
+    padding:0 22px;
+    border-radius:16px;
+    background:#7f1d1d;
+    font-size:17px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.35);
+}
+
 .encabezado{
     text-align:center;
-    margin-bottom:30px;
+    margin-bottom:18px;
 }
 
 .refrescar-btn{
     width:auto;
-    min-width:230px;
-    height:62px;
-    margin:20px auto 0;
-    padding:0 32px;
-    border-radius:18px;
+    min-width:178px;
+    height:54px;
+    margin:0;
+    padding:0 22px;
+    border-radius:16px;
     background:#2563eb;
     color:white;
-    font-size:22px;
+    font-size:17px;
     box-shadow:0 4px 10px rgba(0,0,0,0.35);
 }
 
@@ -31,12 +127,35 @@ body{
 }
 
 .logo{
-    font-size:70px;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+}
+
+.logo img{
+    width:clamp(82px, 9vw, 128px);
+    height:auto;
+    display:block;
+    border-radius:18px;
+    box-shadow:0 10px 28px rgba(0,0,0,0.28);
+}
+
+.login-panel .logo img{
+    width:clamp(118px, 13vw, 142px);
+}
+
+.login-panel h1{
+    margin-top:16px;
+    font-size:clamp(44px, 5vw, 62px);
+}
+
+.login-panel p{
+    font-size:22px;
 }
 
 h1{
     color:#f59e0b;
-    font-size:60px;
+    font-size:clamp(36px, 5vw, 58px);
     margin-bottom:5px;
 }
 
@@ -47,17 +166,131 @@ p{
 
 h2{
     text-align:center;
-    margin-top:40px;
-    margin-bottom:30px;
+    margin-top:22px;
+    margin-bottom:18px;
     color:white;
 }
 
-#mesas{
+.encabezado.app-header{
+    width:min(100%, 1320px);
+    margin:0 auto 18px;
+    padding:14px 16px;
     display:grid;
-    grid-template-columns:repeat(5,1fr);
-    gap:20px;
-    max-width:1200px;
+    grid-template-columns:minmax(150px, 220px) minmax(260px, 1fr) minmax(170px, 390px);
+    align-items:center;
+    gap:18px;
+    text-align:center;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:22px;
+    background:rgba(15,23,42,0.44);
+    box-shadow:0 14px 30px rgba(0,0,0,0.22);
+}
+
+.app-header-left,
+.app-header-right{
+    display:flex;
+    align-items:center;
+    column-gap:10px;
+    row-gap:6px;
+    flex-wrap:wrap;
+}
+
+.app-header-left{
+    justify-content:flex-start;
+}
+
+.app-header-right{
+    justify-content:flex-end;
+}
+
+.app-header-center{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-width:0;
+}
+
+.app-header-center h1{
+    margin:2px 0 4px;
+    line-height:1.05;
+}
+
+.app-header-center p{
+    margin:0;
+}
+
+.encabezado.app-header-home .app-header-center{
+    flex-direction:row;
+    gap:16px;
+}
+
+.encabezado.app-header-home .app-header-center h1{
+    font-size:clamp(34px, 4vw, 52px);
+}
+
+.app-nav-btn{
+    height:54px !important;
+    min-height:54px;
+    width:auto !important;
+    min-width:154px;
+    padding:0 22px !important;
+    border-radius:16px !important;
+    font-size:17px !important;
+    line-height:1;
+    white-space:nowrap;
+}
+
+.app-home-btn{
+    background:#f59e0b !important;
+    color:white !important;
+}
+
+.plano-scroll{
+    max-width:1400px;
     margin:auto;
+    overflow-x:auto;
+    padding:12px 8px 20px;
+}
+
+.controles-plano{
+    display:flex;
+    justify-content:center;
+    margin:-8px auto 18px;
+}
+
+.girar-mapa-btn{
+    width:auto;
+    min-width:220px;
+    height:58px;
+    padding:0 28px;
+    border-radius:18px;
+    background:#7c3aed;
+    color:white;
+    font-size:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.35);
+}
+
+#mesas{
+    --mesa-ancho:96px;
+    --mesa-alto:84px;
+    display:grid;
+    grid-template-columns:repeat(var(--columnas-plano, 12), var(--mesa-ancho));
+    grid-template-rows:repeat(var(--filas-plano, 10), var(--mesa-alto));
+    column-gap:10px;
+    row-gap:6px;
+    width:max-content;
+    min-width:max-content;
+    margin:0 auto;
+    padding:10px 14px;
+    border:2px solid rgba(255,255,255,0.14);
+    border-radius:24px;
+    background:
+        linear-gradient(rgba(255,255,255,0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.045) 1px, transparent 1px),
+        rgba(15,23,42,0.34);
+    background-size:34px 34px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.06), 0 14px 30px rgba(0,0,0,0.25);
 }
 
 button{
@@ -78,6 +311,86 @@ button{
 
 button:hover{
     transform:scale(1.05);
+}
+
+.mesa-plano{
+    width:var(--mesa-ancho);
+    min-width:var(--mesa-ancho);
+    max-width:var(--mesa-ancho);
+    height:var(--mesa-alto);
+    min-height:var(--mesa-alto);
+    max-height:var(--mesa-alto);
+    border-radius:18px;
+    font-size:38px;
+    font-weight:900;
+    line-height:1.1;
+    position:relative;
+    z-index:2;
+}
+
+.plano-referencia{
+    box-sizing:border-box;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100%;
+    border-radius:16px;
+    padding:10px;
+    text-align:center;
+    font-size:15px;
+    font-weight:800;
+    letter-spacing:0;
+    color:#e5e7eb;
+    border:1px solid rgba(255,255,255,0.14);
+    background:rgba(255,255,255,0.08);
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,0.04);
+}
+
+.plano-referencia.entrada{
+    background:rgba(22,163,74,0.24);
+    color:#bbf7d0;
+}
+
+.plano-referencia.sotransoda,
+.plano-referencia.secundaria{
+    background:rgba(234,179,8,0.20);
+    color:#fef3c7;
+}
+
+.plano-referencia.entrada::before{
+    content:"↓";
+    margin-right:8px;
+    font-size:24px;
+}
+
+.plano-referencia.pasillo{
+    background:rgba(148,163,184,0.14);
+    color:#e2e8f0;
+    border-style:dashed;
+}
+
+.plano-referencia.pilastra{
+    background:rgba(31,41,55,0.88);
+    color:#cbd5e1;
+}
+
+.plano-referencia.nevera{
+    background:rgba(14,165,233,0.22);
+    color:#bae6fd;
+}
+
+.plano-referencia.bano{
+    min-height:70px;
+}
+
+.plano-referencia.mujeres{
+    background:rgba(219,39,119,0.22);
+    color:#fbcfe8;
+}
+
+.plano-referencia.hombres{
+    background:rgba(37,99,235,0.24);
+    color:#bfdbfe;
 }
 
 .libre{
@@ -116,13 +429,54 @@ button:hover{
 
 @media(max-width:768px){
 
-    #mesas{
-        grid-template-columns:repeat(2,1fr);
+    body{
+        padding:14px;
     }
 
     button{
         height:80px;
         font-size:18px;
+    }
+
+    .logout-btn{
+        height:54px;
+        font-size:17px;
+    }
+
+    .app-header{
+        grid-template-columns:1fr;
+        gap:12px;
+        padding:12px;
+        margin-bottom:14px;
+    }
+
+    .app-header-left,
+    .app-header-right,
+    .app-header-center{
+        justify-content:center;
+        width:100%;
+    }
+
+    .app-header-home .app-header-center{
+        flex-direction:column;
+        gap:8px;
+    }
+
+    .app-header-right{
+        flex-direction:row;
+    }
+
+    .app-nav-btn{
+        flex:1 1 150px;
+        min-width:145px;
+        height:52px !important;
+        min-height:52px;
+        font-size:16px !important;
+    }
+
+    .logo img{
+        width:84px;
+        border-radius:14px;
     }
 
     h1{
@@ -134,6 +488,40 @@ button:hover{
         max-width:300px;
         height:56px;
         font-size:19px;
+    }
+
+    .controles-plano{
+        margin:-4px auto 14px;
+    }
+
+    .girar-mapa-btn{
+        width:100%;
+        max-width:300px;
+        min-width:0;
+        height:56px;
+        font-size:19px;
+    }
+
+    .plano-scroll{
+        margin:0 -8px;
+        padding:8px 8px 18px;
+    }
+
+    #mesas{
+        gap:10px;
+        padding:14px;
+    }
+
+    .mesa-plano{
+        font-size:34px;
+    }
+
+    .plano-referencia{
+        font-size:13px;
+    }
+
+    .gastos-card{
+        grid-template-columns:1fr;
     }
 
 }
@@ -352,6 +740,17 @@ button:hover{
     gap:20px;
 }
 
+.gastos-workspace{
+    max-width:1120px;
+}
+
+.gastos-card{
+    display:grid;
+    grid-template-columns:minmax(320px, 1fr) minmax(240px, 320px);
+    gap:18px;
+    align-items:stretch;
+}
+
 .form-gastos{
     background:rgba(255,255,255,0.08);
     border:1px solid rgba(255,255,255,0.12);
@@ -399,10 +798,13 @@ button:hover{
     background:linear-gradient(135deg,#f59e0b 0%,#fbbf24 100%);
     border-radius:24px;
     padding:22px 24px;
-    margin:24px auto 18px;
-    max-width:860px;
+    margin:0;
+    min-height:100%;
     text-align:center;
     box-shadow:0 12px 30px rgba(0,0,0,.25);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
 }
 
 .gastos-resumen h2{
@@ -457,14 +859,15 @@ button:hover{
 
 .total-mesa{
     text-align:center;
-    margin-top:50px;
+    margin:22px auto 0;
+    max-width:860px;
 }
 
 .total-mesa h2{
-    font-size:70px;
+    font-size:clamp(42px, 6vw, 66px);
     color:#f59e0b;
-    margin-top:20px;
-    margin-bottom:20px;
+    margin-top:12px;
+    margin-bottom:12px;
     font-weight:bold;
 }
 
@@ -784,11 +1187,11 @@ button:hover{
 
     color:white !important;
 
-    width:300px;
+    width:210px;
 
-    height:80px;
+    height:64px;
 
-    font-size:28px;
+    font-size:18px;
 
     font-weight:bold;
 
@@ -815,11 +1218,11 @@ button:hover{
 
     color:white !important;
 
-    width:300px;
+    width:210px;
 
-    height:80px;
+    height:64px;
 
-    font-size:28px;
+    font-size:18px;
 
     font-weight:bold;
 
@@ -856,12 +1259,17 @@ button:hover{
 }
 
 .ventas-btn,
+.historial-btn,
 .productos-admin-btn,
 .gastos-btn,
 .cierre-btn,
 .historial-cierres-btn{
 
-    width:300px;
+    width:210px;
+
+    height:64px;
+
+    font-size:18px;
 
     margin:0 !important;
 
@@ -1033,21 +1441,18 @@ input::placeholder{
 }
 
 .barra-superior{
-
-    width:100%;
-
-    display:flex;
-
-    justify-content:flex-start;
-
-    margin-bottom:10px;
+    display:none;
 }
 
 .inicio{
 
-    width:160px;
+    width:auto;
 
-    height:60px;
+    min-width:154px;
+
+    height:54px;
+
+    padding:0 22px;
 
     background:#f59e0b;
 
@@ -1055,9 +1460,9 @@ input::placeholder{
 
     border:none;
 
-    border-radius:15px;
+    border-radius:16px;
 
-    font-size:24px;
+    font-size:17px;
 
     font-weight:bold;
 
@@ -1077,8 +1482,8 @@ input::placeholder{
     align-items:center;
     gap:20px;
     flex-wrap:wrap;
-    max-width:1200px;
-    margin:0 auto 30px;
+    max-width:1320px;
+    margin:0 auto 18px;
     padding:0 10px;
 }
 
@@ -1169,8 +1574,9 @@ input::placeholder{
 .boton-principal{
     border:none;
     border-radius:16px;
-    padding:14px 20px;
-    font-size:16px;
+    min-height:58px;
+    padding:16px 24px;
+    font-size:18px;
     font-weight:700;
     cursor:pointer;
     transition:transform 0.25s ease, background 0.25s ease;
@@ -1295,6 +1701,59 @@ input::placeholder{
     padding:0 10px;
 }
 
+.cierre-mensual-panel{
+    margin-bottom:22px;
+}
+
+.acciones-cierre-mensual{
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:24px;
+}
+
+.historial-cierre-list-item small{
+    display:block;
+    color:#94a3b8;
+    font-size:12px;
+    margin-top:4px;
+}
+
+.selector-administrador-cierre{
+    display:flex;
+    justify-content:center;
+    gap:14px;
+    flex-wrap:wrap;
+    margin-top:14px;
+}
+
+.selector-administrador-cierre label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    min-width:140px;
+    justify-content:center;
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.18);
+    border-radius:16px;
+    padding:14px 18px;
+    font-size:18px;
+    font-weight:700;
+    color:white;
+}
+
+.selector-administrador-cierre input{
+    width:18px;
+    height:18px;
+}
+
+.acciones-header{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+}
+
 @media (max-width: 680px) {
     .encabezado-dashboard,
     .panel-filtros{
@@ -1302,6 +1761,17 @@ input::placeholder{
         align-items:flex-start;
     }
     .boton-principal{
+        width:100%;
+    }
+    .acciones-cierre-mensual .guardar,
+    .acciones-cierre-mensual .volver{
+        width:100%;
+    }
+    .acciones-header,
+    .acciones-header .volver{
+        width:100%;
+    }
+    .selector-administrador-cierre label{
         width:100%;
     }
 }

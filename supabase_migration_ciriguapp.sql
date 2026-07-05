@@ -721,6 +721,10 @@ begin
       and cierre_id is null
       and activo = true;
 
+    if coalesce(v_facturas, 0) = 0 and coalesce(v_gastos, 0) = 0 then
+        raise exception 'no hay movimientos para cerrar';
+    end if;
+
     select coalesce(sum(
         case
             when coalesce(cliente, 0) = 0
@@ -828,25 +832,6 @@ end;
 $$;
 
 grant usage on schema public to anon, authenticated;
-grant select, insert, update, delete on public.mesas to anon, authenticated;
-grant select, insert, update, delete on public.clientes_mesa to anon, authenticated;
-grant select, insert, update, delete on public.categorias to anon, authenticated;
-grant select, insert, update, delete on public.productos to anon, authenticated;
-grant select, insert, update, delete on public.ventas to anon, authenticated;
-grant select, insert, update, delete on public.gastos to anon, authenticated;
-grant select, insert, update, delete on public.cierres_caja to anon, authenticated;
-grant select, insert, update on public.ocupaciones_mesa to anon, authenticated;
-grant select, insert, update on public.facturas to anon, authenticated;
-grant select, insert, update on public.caja_periodos to anon, authenticated;
-grant execute on function public.cirigua_ocupacion_abierta(integer) to anon, authenticated;
-grant execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) to anon, authenticated;
-grant execute on function public.guardar_pedido_cliente_cirigua(integer, integer, jsonb) to anon, authenticated;
-grant execute on function public.actualizar_estado_mesa_cirigua(integer) to anon, authenticated;
-grant execute on function public.agregar_producto_cliente_cirigua(integer, integer, text, numeric, integer) to anon, authenticated;
-grant execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) to anon, authenticated;
-grant execute on function public.crear_gasto_cirigua(text, numeric) to anon, authenticated;
-grant execute on function public.eliminar_gasto_cirigua(text) to anon, authenticated;
-grant execute on function public.cerrar_caja_cirigua() to anon, authenticated;
 
 alter table public.mesas enable row level security;
 alter table public.clientes_mesa enable row level security;
@@ -864,6 +849,707 @@ declare
     tabla text;
 begin
     foreach tabla in array array[
+        'auditoria',
+        'papelera',
+        'configuracion'
+    ] loop
+        if to_regclass('public.' || tabla) is not null then
+            execute format('alter table public.%I enable row level security', tabla);
+        end if;
+    end loop;
+end;
+$$;
+
+-- CIERRE MENSUAL independiente del cierre diario.
+create table if not exists public.periodos_mensuales (
+    id uuid primary key default gen_random_uuid(),
+    estado text not null default 'abierto' check (estado in ('abierto', 'cerrado')),
+    inicio timestamptz not null default now(),
+    fin timestamptz,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
+);
+
+create unique index if not exists periodos_mensuales_abierto_unico
+on public.periodos_mensuales ((estado))
+where estado = 'abierto';
+
+create table if not exists public.cierres_mensuales (
+    id uuid primary key default gen_random_uuid(),
+    periodo_id uuid not null references public.periodos_mensuales(id),
+    nombre_periodo text not null,
+    inicio_periodo timestamptz not null,
+    fin_periodo timestamptz not null,
+    fecha date not null default current_date,
+    hora text not null default to_char(now(), 'HH24:MI:SS'),
+    "timestamp" timestamptz not null default now(),
+    ventas numeric not null default 0,
+    gastos numeric not null default 0,
+    resultado numeric not null default 0,
+    cantidad_ventas integer not null default 0,
+    cantidad_gastos integer not null default 0,
+    ventas_detalle jsonb not null default '[]'::jsonb,
+    gastos_detalle jsonb not null default '[]'::jsonb,
+    idempotency_key text,
+    created_at timestamptz not null default now(),
+    unique (periodo_id)
+);
+
+create unique index if not exists cierres_mensuales_idempotency_key_unica
+on public.cierres_mensuales (idempotency_key)
+where idempotency_key is not null;
+
+alter table public.ventas
+add column if not exists cierre_mensual_id uuid references public.cierres_mensuales(id);
+
+alter table public.gastos
+add column if not exists cierre_mensual_id uuid references public.cierres_mensuales(id);
+
+create index if not exists ventas_cierre_mensual_idx
+on public.ventas (cierre_mensual_id, "timestamp");
+
+create index if not exists gastos_cierre_mensual_idx
+on public.gastos (cierre_mensual_id, "timestamp")
+where activo = true;
+
+create or replace function public.cirigua_nombre_periodo_mensual(p_inicio timestamptz)
+returns text
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+    v_fecha timestamp;
+    v_mes integer;
+    v_nombre text;
+begin
+    v_fecha := p_inicio at time zone 'America/Bogota';
+    v_mes := extract(month from v_fecha)::integer;
+    v_nombre := case v_mes
+        when 1 then 'Enero'
+        when 2 then 'Febrero'
+        when 3 then 'Marzo'
+        when 4 then 'Abril'
+        when 5 then 'Mayo'
+        when 6 then 'Junio'
+        when 7 then 'Julio'
+        when 8 then 'Agosto'
+        when 9 then 'Septiembre'
+        when 10 then 'Octubre'
+        when 11 then 'Noviembre'
+        else 'Diciembre'
+    end;
+
+    return v_nombre || ' ' || extract(year from v_fecha)::integer::text;
+end;
+$$;
+
+create or replace function public.cirigua_periodo_mensual_abierto()
+returns uuid
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+    v_periodo uuid;
+    v_inicio timestamptz;
+begin
+    select id
+    into v_periodo
+    from public.periodos_mensuales
+    where estado = 'abierto'
+    order by inicio desc
+    limit 1;
+
+    if v_periodo is not null then
+        return v_periodo;
+    end if;
+
+    select coalesce(min(momento), now())
+    into v_inicio
+    from (
+        select coalesce("timestamp", created_at) as momento
+        from public.ventas
+        where cierre_mensual_id is null
+        union all
+        select coalesce("timestamp", created_at, fecha) as momento
+        from public.gastos
+        where cierre_mensual_id is null
+          and activo = true
+    ) movimientos
+    where momento is not null;
+
+    insert into public.periodos_mensuales (estado, inicio)
+    values ('abierto', v_inicio)
+    returning id into v_periodo;
+
+    return v_periodo;
+end;
+$$;
+
+create or replace function public.obtener_resumen_mensual_cirigua()
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+    v_periodo record;
+    v_ventas numeric;
+    v_gastos numeric;
+    v_cantidad_ventas integer;
+    v_cantidad_gastos integer;
+    v_gastos_detalle jsonb;
+    v_ventas_detalle jsonb;
+begin
+    perform public.cirigua_periodo_mensual_abierto();
+
+    select *
+    into v_periodo
+    from public.periodos_mensuales
+    where estado = 'abierto'
+    order by inicio desc
+    limit 1;
+
+    select coalesce(sum(total), 0), count(*)
+    into v_ventas, v_cantidad_ventas
+    from public.ventas
+    where coalesce("timestamp", created_at) >= v_periodo.inicio
+      and cierre_mensual_id is null;
+
+    select coalesce(sum(valor), 0), count(*)
+    into v_gastos, v_cantidad_gastos
+    from public.gastos
+    where coalesce("timestamp", created_at, fecha) >= v_periodo.inicio
+      and cierre_mensual_id is null
+      and activo = true;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'factura', coalesce(factura, numero_factura),
+        'mesa_numero', mesa_numero,
+        'cliente', cliente,
+        'tipo', coalesce(tipo, tipo_cobro),
+        'total', total,
+        'timestamp', coalesce("timestamp", created_at)
+    ) order by coalesce("timestamp", created_at)), '[]'::jsonb)
+    into v_ventas_detalle
+    from public.ventas
+    where coalesce("timestamp", created_at) >= v_periodo.inicio
+      and cierre_mensual_id is null;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'concepto', concepto,
+        'valor', valor,
+        'timestamp', coalesce("timestamp", created_at, fecha)
+    ) order by coalesce("timestamp", created_at, fecha)), '[]'::jsonb)
+    into v_gastos_detalle
+    from public.gastos
+    where coalesce("timestamp", created_at, fecha) >= v_periodo.inicio
+      and cierre_mensual_id is null
+      and activo = true;
+
+    return jsonb_build_object(
+        'ok', true,
+        'periodo', jsonb_build_object(
+            'id', v_periodo.id,
+            'estado', v_periodo.estado,
+            'inicio', v_periodo.inicio,
+            'nombre', public.cirigua_nombre_periodo_mensual(v_periodo.inicio)
+        ),
+        'ventas', v_ventas,
+        'gastos', v_gastos,
+        'resultado', v_ventas - v_gastos,
+        'cantidad_ventas', v_cantidad_ventas,
+        'cantidad_gastos', v_cantidad_gastos,
+        'ventas_detalle', v_ventas_detalle,
+        'gastos_detalle', v_gastos_detalle
+    );
+end;
+$$;
+
+create or replace function public.cerrar_mes_cirigua(
+    p_periodo_id uuid,
+    p_idempotency_key text
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+    v_existente record;
+    v_periodo record;
+    v_fin timestamptz;
+    v_ventas numeric;
+    v_gastos numeric;
+    v_cantidad_ventas integer;
+    v_cantidad_gastos integer;
+    v_ventas_detalle jsonb;
+    v_gastos_detalle jsonb;
+    v_cierre record;
+    v_nuevo_periodo uuid;
+begin
+    if p_periodo_id is null then
+        raise exception 'periodo mensual invalido';
+    end if;
+
+    if p_idempotency_key is null or length(trim(p_idempotency_key)) < 12 then
+        raise exception 'idempotency_key invalida';
+    end if;
+
+    select *
+    into v_existente
+    from public.cierres_mensuales
+    where idempotency_key = p_idempotency_key;
+
+    if found then
+        return jsonb_build_object(
+            'ok', true,
+            'idempotente', true,
+            'cierre', to_jsonb(v_existente)
+        );
+    end if;
+
+    perform pg_advisory_xact_lock(hashtext('cirigua_cierre_mensual'));
+
+    select *
+    into v_periodo
+    from public.periodos_mensuales
+    where id = p_periodo_id
+    for update;
+
+    if not found then
+        raise exception 'periodo mensual no existe';
+    end if;
+
+    if v_periodo.estado <> 'abierto' then
+        raise exception 'periodo mensual ya cerrado';
+    end if;
+
+    v_fin := clock_timestamp();
+
+    select coalesce(sum(total), 0), count(*)
+    into v_ventas, v_cantidad_ventas
+    from public.ventas
+    where coalesce("timestamp", created_at) >= v_periodo.inicio
+      and coalesce("timestamp", created_at) < v_fin
+      and cierre_mensual_id is null;
+
+    select coalesce(sum(valor), 0), count(*)
+    into v_gastos, v_cantidad_gastos
+    from public.gastos
+    where coalesce("timestamp", created_at, fecha) >= v_periodo.inicio
+      and coalesce("timestamp", created_at, fecha) < v_fin
+      and cierre_mensual_id is null
+      and activo = true;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'factura', coalesce(factura, numero_factura),
+        'mesa_numero', mesa_numero,
+        'cliente', cliente,
+        'tipo', coalesce(tipo, tipo_cobro),
+        'total', total,
+        'timestamp', coalesce("timestamp", created_at)
+    ) order by coalesce("timestamp", created_at)), '[]'::jsonb)
+    into v_ventas_detalle
+    from public.ventas
+    where coalesce("timestamp", created_at) >= v_periodo.inicio
+      and coalesce("timestamp", created_at) < v_fin
+      and cierre_mensual_id is null;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'concepto', concepto,
+        'valor', valor,
+        'timestamp', coalesce("timestamp", created_at, fecha)
+    ) order by coalesce("timestamp", created_at, fecha)), '[]'::jsonb)
+    into v_gastos_detalle
+    from public.gastos
+    where coalesce("timestamp", created_at, fecha) >= v_periodo.inicio
+      and coalesce("timestamp", created_at, fecha) < v_fin
+      and cierre_mensual_id is null
+      and activo = true;
+
+    insert into public.cierres_mensuales (
+        periodo_id,
+        nombre_periodo,
+        inicio_periodo,
+        fin_periodo,
+        fecha,
+        hora,
+        "timestamp",
+        ventas,
+        gastos,
+        resultado,
+        cantidad_ventas,
+        cantidad_gastos,
+        ventas_detalle,
+        gastos_detalle,
+        idempotency_key
+    ) values (
+        v_periodo.id,
+        public.cirigua_nombre_periodo_mensual(v_periodo.inicio),
+        v_periodo.inicio,
+        v_fin,
+        v_fin::date,
+        to_char(v_fin, 'HH24:MI:SS'),
+        v_fin,
+        v_ventas,
+        v_gastos,
+        v_ventas - v_gastos,
+        v_cantidad_ventas,
+        v_cantidad_gastos,
+        v_ventas_detalle,
+        v_gastos_detalle,
+        p_idempotency_key
+    ) returning * into v_cierre;
+
+    update public.ventas
+    set cierre_mensual_id = v_cierre.id
+    where coalesce("timestamp", created_at) >= v_periodo.inicio
+      and coalesce("timestamp", created_at) < v_fin
+      and cierre_mensual_id is null;
+
+    update public.gastos
+    set cierre_mensual_id = v_cierre.id
+    where coalesce("timestamp", created_at, fecha) >= v_periodo.inicio
+      and coalesce("timestamp", created_at, fecha) < v_fin
+      and cierre_mensual_id is null
+      and activo = true;
+
+    update public.periodos_mensuales
+    set estado = 'cerrado',
+        fin = v_fin,
+        updated_at = clock_timestamp()
+    where id = v_periodo.id;
+
+    insert into public.periodos_mensuales (estado, inicio)
+    values ('abierto', v_fin)
+    returning id into v_nuevo_periodo;
+
+    return jsonb_build_object(
+        'ok', true,
+        'idempotente', false,
+        'cierre', to_jsonb(v_cierre),
+        'nuevo_periodo_id', v_nuevo_periodo
+    );
+end;
+$$;
+
+insert into public.periodos_mensuales (estado, inicio)
+select 'abierto', coalesce(min(momento), now())
+from (
+    select coalesce("timestamp", created_at) as momento
+    from public.ventas
+    where cierre_mensual_id is null
+    union all
+    select coalesce("timestamp", created_at, fecha) as momento
+    from public.gastos
+    where cierre_mensual_id is null
+      and activo = true
+) movimientos
+where not exists (
+    select 1 from public.periodos_mensuales where estado = 'abierto'
+);
+
+grant select, insert, update on public.periodos_mensuales to authenticated;
+grant select, insert on public.cierres_mensuales to authenticated;
+grant execute on function public.cirigua_nombre_periodo_mensual(timestamptz) to authenticated;
+grant execute on function public.cirigua_periodo_mensual_abierto() to authenticated;
+grant execute on function public.obtener_resumen_mensual_cirigua() to authenticated;
+grant execute on function public.cerrar_mes_cirigua(uuid, text) to authenticated;
+
+revoke all on public.periodos_mensuales from anon;
+revoke all on public.cierres_mensuales from anon;
+revoke delete on public.periodos_mensuales from authenticated;
+revoke update, delete, truncate, references, trigger on public.cierres_mensuales from authenticated;
+revoke execute on function public.cirigua_nombre_periodo_mensual(timestamptz) from public, anon;
+revoke execute on function public.cirigua_periodo_mensual_abierto() from public, anon;
+revoke execute on function public.obtener_resumen_mensual_cirigua() from public, anon;
+revoke execute on function public.cerrar_mes_cirigua(uuid, text) from public, anon;
+
+alter table public.periodos_mensuales enable row level security;
+alter table public.cierres_mensuales enable row level security;
+
+do $$
+declare
+    v_policy record;
+begin
+    for v_policy in
+        select policyname, tablename
+        from pg_policies
+        where schemaname = 'public'
+          and tablename in ('periodos_mensuales', 'cierres_mensuales')
+    loop
+        execute format('drop policy if exists %I on public.%I', v_policy.policyname, v_policy.tablename);
+    end loop;
+end;
+$$;
+
+create policy periodos_mensuales_auth_select
+on public.periodos_mensuales
+for select to authenticated
+using (true);
+
+create policy periodos_mensuales_auth_insert
+on public.periodos_mensuales
+for insert to authenticated
+with check (true);
+
+create policy periodos_mensuales_auth_update
+on public.periodos_mensuales
+for update to authenticated
+using (true)
+with check (true);
+
+create policy cierres_mensuales_auth_select
+on public.cierres_mensuales
+for select to authenticated
+using (true);
+
+create policy cierres_mensuales_auth_insert
+on public.cierres_mensuales
+for insert to authenticated
+with check (true);
+
+-- Administrador responsable del cierre diario.
+alter table public.cierres_caja
+add column if not exists administrador text;
+
+alter table public.cierres_caja
+drop constraint if exists cierres_caja_administrador_check;
+
+alter table public.cierres_caja
+add constraint cierres_caja_administrador_check
+check (administrador is null or administrador in ('Antonio', 'Duvel'));
+
+create or replace function public.cerrar_caja_cirigua(p_administrador text)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public
+as $$
+declare
+    v_periodo record;
+    v_ventas numeric;
+    v_gastos numeric;
+    v_facturas integer;
+    v_clientes integer;
+    v_promedio numeric;
+    v_producto_top text;
+    v_gastos_detalle jsonb;
+    v_cierre record;
+    v_nuevo_periodo uuid;
+begin
+    if p_administrador not in ('Antonio', 'Duvel') then
+        raise exception 'administrador de cierre invalido';
+    end if;
+
+    select *
+    into v_periodo
+    from public.caja_periodos
+    where estado = 'abierto'
+    order by inicio desc
+    limit 1
+    for update;
+
+    if not found then
+        insert into public.caja_periodos (estado)
+        values ('abierto')
+        returning * into v_periodo;
+    end if;
+
+    select coalesce(sum(total), 0), count(*)
+    into v_ventas, v_facturas
+    from public.ventas
+    where "timestamp" >= v_periodo.inicio
+      and cierre_id is null;
+
+    select coalesce(sum(valor), 0)
+    into v_gastos
+    from public.gastos
+    where periodo_id = v_periodo.id
+      and cierre_id is null
+      and activo = true;
+
+    select coalesce(sum(
+        case
+            when coalesce(v.cliente, 0) = 0
+            then greatest((select count(*) from jsonb_object_keys(coalesce(v.productos_por_cliente, '{}'::jsonb))), 1)
+            else 1
+        end
+    ), 0)
+    into v_clientes
+    from public.ventas v
+    where v."timestamp" >= v_periodo.inicio
+      and v.cierre_id is null;
+
+    v_promedio := case when v_facturas > 0 then v_ventas / v_facturas else 0 end;
+
+    with items as (
+        select key as nombre, sum((value->>'cantidad')::numeric) as cantidad
+        from public.ventas v,
+        lateral jsonb_each(coalesce(v.productos, '{}'::jsonb))
+        where v."timestamp" >= v_periodo.inicio
+          and v.cierre_id is null
+          and jsonb_typeof(value) = 'object'
+        group by key
+        order by cantidad desc
+        limit 1
+    )
+    select nombre into v_producto_top from items;
+
+    select coalesce(jsonb_agg(jsonb_build_object(
+        'id', id,
+        'concepto', concepto,
+        'valor', valor,
+        'timestamp', "timestamp"
+    ) order by created_at), '[]'::jsonb)
+    into v_gastos_detalle
+    from public.gastos
+    where periodo_id = v_periodo.id
+      and cierre_id is null
+      and activo = true;
+
+    insert into public.cierres_caja (
+        fecha,
+        hora,
+        "timestamp",
+        periodo_id,
+        administrador,
+        ventas,
+        gastos,
+        utilidad,
+        facturas,
+        clientes,
+        producto_top,
+        promedio,
+        gastos_detalle,
+        inicio_periodo,
+        fin_periodo
+    )
+    values (
+        now(),
+        to_char(now(), 'HH24:MI:SS'),
+        now(),
+        v_periodo.id,
+        p_administrador,
+        v_ventas,
+        v_gastos,
+        v_ventas - v_gastos,
+        v_facturas,
+        v_clientes,
+        coalesce(v_producto_top, '-'),
+        v_promedio,
+        v_gastos_detalle,
+        v_periodo.inicio,
+        now()
+    )
+    returning * into v_cierre;
+
+    update public.ventas
+    set cierre_id = v_cierre.id::text
+    where "timestamp" >= v_periodo.inicio
+      and cierre_id is null;
+
+    update public.gastos
+    set cierre_id = v_cierre.id::text
+    where periodo_id = v_periodo.id
+      and cierre_id is null;
+
+    update public.caja_periodos
+    set estado = 'cerrado', fin = now()
+    where id = v_periodo.id;
+
+    insert into public.caja_periodos (estado)
+    values ('abierto')
+    returning id into v_nuevo_periodo;
+
+    return jsonb_build_object(
+        'ok', true,
+        'cierre', to_jsonb(v_cierre),
+        'nuevo_periodo_id', v_nuevo_periodo
+    );
+end;
+$$;
+
+drop function if exists public.cerrar_caja_cirigua();
+
+revoke execute on function public.cerrar_caja_cirigua(text) from public, anon;
+grant execute on function public.cerrar_caja_cirigua(text) to authenticated;
+
+revoke all privileges on table
+    public.mesas,
+    public.clientes_mesa,
+    public.categorias,
+    public.productos,
+    public.ventas,
+    public.gastos,
+    public.cierres_caja,
+    public.ocupaciones_mesa,
+    public.facturas,
+    public.caja_periodos
+from anon, authenticated;
+
+do $$
+declare
+    tabla text;
+begin
+    foreach tabla in array array[
+        'auditoria',
+        'papelera',
+        'configuracion'
+    ] loop
+        if to_regclass('public.' || tabla) is not null then
+            execute format('revoke all privileges on table public.%I from anon, authenticated', tabla);
+        end if;
+    end loop;
+end;
+$$;
+
+revoke all privileges on all sequences in schema public from anon;
+grant usage, select on all sequences in schema public to authenticated;
+
+grant select, insert, update on public.categorias to authenticated;
+grant select, insert, update on public.productos to authenticated;
+grant select, update on public.mesas to authenticated;
+grant select, insert, update, delete on public.clientes_mesa to authenticated;
+grant select, insert, update on public.ventas to authenticated;
+grant select, insert, update on public.gastos to authenticated;
+grant select, insert on public.cierres_caja to authenticated;
+grant select, insert, update on public.ocupaciones_mesa to authenticated;
+grant select, insert, update on public.facturas to authenticated;
+grant select, insert, update on public.caja_periodos to authenticated;
+
+revoke execute on function public.cirigua_ocupacion_abierta(integer) from public, anon;
+revoke execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) from public, anon;
+revoke execute on function public.guardar_pedido_cliente_cirigua(integer, integer, jsonb) from public, anon;
+revoke execute on function public.actualizar_estado_mesa_cirigua(integer) from public, anon;
+revoke execute on function public.agregar_producto_cliente_cirigua(integer, integer, text, numeric, integer) from public, anon;
+revoke execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) from public, anon;
+revoke execute on function public.crear_gasto_cirigua(text, numeric) from public, anon;
+revoke execute on function public.eliminar_gasto_cirigua(text) from public, anon;
+revoke execute on function public.cerrar_caja_cirigua(text) from public, anon;
+
+grant execute on function public.cirigua_ocupacion_abierta(integer) to authenticated;
+grant execute on function public.registrar_venta_cirigua(integer, integer, text, numeric, jsonb, jsonb, text) to authenticated;
+grant execute on function public.guardar_pedido_cliente_cirigua(integer, integer, jsonb) to authenticated;
+grant execute on function public.actualizar_estado_mesa_cirigua(integer) to authenticated;
+grant execute on function public.agregar_producto_cliente_cirigua(integer, integer, text, numeric, integer) to authenticated;
+grant execute on function public.quitar_producto_cliente_cirigua(integer, integer, text, integer) to authenticated;
+grant execute on function public.crear_gasto_cirigua(text, numeric) to authenticated;
+grant execute on function public.eliminar_gasto_cirigua(text) to authenticated;
+grant execute on function public.cerrar_caja_cirigua(text) to authenticated;
+
+do $$
+declare
+    tabla text;
+    politica text;
+begin
+    foreach tabla in array array[
         'mesas',
         'clientes_mesa',
         'categorias',
@@ -873,59 +1559,65 @@ begin
         'cierres_caja',
         'ocupaciones_mesa',
         'facturas',
-        'caja_periodos'
+        'caja_periodos',
+        'auditoria',
+        'papelera',
+        'configuracion'
     ] loop
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_select'
-        ) then
-            execute format(
-                'create policy cirigua_anon_select on public.%I for select to anon, authenticated using (true)',
-                tabla
-            );
-        end if;
-
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_insert'
-        ) then
-            execute format(
-                'create policy cirigua_anon_insert on public.%I for insert to anon, authenticated with check (true)',
-                tabla
-            );
-        end if;
-
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_update'
-        ) then
-            execute format(
-                'create policy cirigua_anon_update on public.%I for update to anon, authenticated using (true) with check (true)',
-                tabla
-            );
-        end if;
-
-        if not exists (
-            select 1
-            from pg_policies
-            where schemaname = 'public'
-              and tablename = tabla
-              and policyname = 'cirigua_anon_delete'
-        ) then
-            execute format(
-                'create policy cirigua_anon_delete on public.%I for delete to anon, authenticated using (true)',
-                tabla
-            );
+        if to_regclass('public.' || tabla) is not null then
+            foreach politica in array array[
+                'cirigua_anon_select',
+                'cirigua_anon_insert',
+                'cirigua_anon_update',
+                'cirigua_anon_delete',
+                'ciriguapp_' || tabla,
+                'cirigua_auth_select',
+                'cirigua_auth_insert',
+                'cirigua_auth_update',
+                'cirigua_auth_delete'
+            ] loop
+                execute format('drop policy if exists %I on public.%I', politica, tabla);
+            end loop;
         end if;
     end loop;
 end;
 $$;
+
+create policy cirigua_auth_select on public.categorias for select to authenticated using (true);
+create policy cirigua_auth_insert on public.categorias for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.categorias for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.productos for select to authenticated using (true);
+create policy cirigua_auth_insert on public.productos for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.productos for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.mesas for select to authenticated using (true);
+create policy cirigua_auth_update on public.mesas for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.clientes_mesa for select to authenticated using (true);
+create policy cirigua_auth_insert on public.clientes_mesa for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.clientes_mesa for update to authenticated using (true) with check (true);
+create policy cirigua_auth_delete on public.clientes_mesa for delete to authenticated using (true);
+
+create policy cirigua_auth_select on public.ventas for select to authenticated using (true);
+create policy cirigua_auth_insert on public.ventas for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.ventas for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.gastos for select to authenticated using (true);
+create policy cirigua_auth_insert on public.gastos for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.gastos for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.cierres_caja for select to authenticated using (true);
+create policy cirigua_auth_insert on public.cierres_caja for insert to authenticated with check (true);
+
+create policy cirigua_auth_select on public.ocupaciones_mesa for select to authenticated using (true);
+create policy cirigua_auth_insert on public.ocupaciones_mesa for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.ocupaciones_mesa for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.facturas for select to authenticated using (true);
+create policy cirigua_auth_insert on public.facturas for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.facturas for update to authenticated using (true) with check (true);
+
+create policy cirigua_auth_select on public.caja_periodos for select to authenticated using (true);
+create policy cirigua_auth_insert on public.caja_periodos for insert to authenticated with check (true);
+create policy cirigua_auth_update on public.caja_periodos for update to authenticated using (true) with check (true);

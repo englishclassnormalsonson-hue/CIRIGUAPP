@@ -91,9 +91,33 @@ h2{
     cursor:pointer;
 }
 
+.inicio-recibo{
+
+    width:100%;
+
+    height:44px;
+
+    margin-bottom:12px;
+
+    background:#2563eb;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:16px;
+
+    font-weight:bold;
+
+    cursor:pointer;
+}
+
 @media print{
 
-    .imprimir{
+    .imprimir,
+    .inicio-recibo{
 
         display:none;
     }
@@ -101,9 +125,21 @@ h2{
 
 </style>
 
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CIRIGUAPP">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
 </head>
 
 <body>
+
+<button class="inicio-recibo" onclick="window.location.href='index.html'">
+🏠 Inicio
+</button>
 
 <img
 src="logo.png"
@@ -178,6 +214,7 @@ onclick="window.print()">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
+<script src="auth.js"></script>
 <script src="utils.js"></script>
 <script src="ventas.js"></script>
 <script>
@@ -412,10 +449,11 @@ async function actualizarReciboDesdeSupabase(){
     }
 }
 
-actualizarReciboDesdeSupabase();
+ciriguaAuthReady.then(actualizarReciboDesdeSupabase);
 
 </script>
 
+<script src="pwa.js"></script>
 </body>
 
 </html>

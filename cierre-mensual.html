@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cierre Mensual</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CIRIGUAPP">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
+</head>
+
+<body>
+
+    <div class="encabezado encabezado-dashboard">
+        <div>
+            <h1>🗓️ Cierre Mensual</h1>
+            <p>Periodo abierto acumulado</p>
+        </div>
+        <button class="volver boton-principal" onclick="window.location.href='index.html'">🏠 Inicio</button>
+    </div>
+
+    <main class="detalle-cierre">
+        <section class="tarjeta-cierre cierre-mensual-panel">
+            <div class="tarjeta-cierre-header">
+                <div>
+                    <strong id="nombrePeriodo">Periodo mensual</strong>
+                    <span id="inicioPeriodo">Inicio: cargando...</span>
+                </div>
+                <span class="historial-cierre-badge" id="estadoPeriodo">Abierto</span>
+            </div>
+
+            <div class="tarjeta-cierre-grid">
+                <div><span>Total vendido</span><strong id="ventasMensuales">$0</strong></div>
+                <div><span>Total gastos</span><strong id="gastosMensuales">$0</strong></div>
+                <div><span>Resultado neto</span><strong id="resultadoMensual">$0</strong></div>
+                <div><span>Ventas</span><strong id="cantidadVentas">0</strong></div>
+                <div><span>Gastos</span><strong id="cantidadGastos">0</strong></div>
+            </div>
+
+            <div class="acciones-cierre-mensual">
+                <button class="guardar" id="botonCerrarMes" onclick="cerrarMesActual(this)">🗓️ Cerrar mes</button>
+                <button class="volver" onclick="cargarResumenMensual()">🔄 Refrescar</button>
+            </div>
+        </section>
+
+        <section class="tarjeta-cierre cierre-mensual-panel">
+            <div class="tarjeta-cierre-header">
+                <div>
+                    <strong>Gastos del periodo</strong>
+                    <span>Gastos activos registrados durante el periodo mensual abierto.</span>
+                </div>
+            </div>
+            <div id="gastosPeriodo" class="historial-cierre-list"></div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="auth.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    let resumenMensualActual = null;
+
+    function moneda(valor){
+        return "$" + Number(valor || 0).toLocaleString();
+    }
+
+    function fechaHora(valor){
+        if(!valor){
+            return "N/A";
+        }
+        let fecha = new Date(valor);
+        if(isNaN(fecha.getTime())){
+            return String(valor);
+        }
+        return fecha.toLocaleString();
+    }
+
+    function pintarGastosPeriodo(gastos){
+        let contenedor = document.getElementById("gastosPeriodo");
+        if(!Array.isArray(gastos) || gastos.length === 0){
+            contenedor.innerHTML = '<p class="historial-cierre-empty">No hay gastos registrados en el periodo mensual abierto.</p>';
+            return;
+        }
+
+        contenedor.innerHTML = gastos.map(function(gasto){
+            return '<div class="historial-cierre-list-item"><span>' +
+                (gasto.concepto || 'Gasto') +
+                '<small>' + fechaHora(gasto.timestamp) + '</small></span><strong>' +
+                moneda(gasto.valor) +
+                '</strong></div>';
+        }).join('');
+    }
+
+    function pintarResumenMensual(resumen){
+        resumenMensualActual = resumen;
+        document.getElementById("nombrePeriodo").textContent = resumen.periodo.nombre;
+        document.getElementById("inicioPeriodo").textContent = "Inicio: " + fechaHora(resumen.periodo.inicio);
+        document.getElementById("estadoPeriodo").textContent = resumen.periodo.estado;
+        document.getElementById("ventasMensuales").textContent = moneda(resumen.ventas);
+        document.getElementById("gastosMensuales").textContent = moneda(resumen.gastos);
+        document.getElementById("resultadoMensual").textContent = moneda(resumen.resultado);
+        document.getElementById("cantidadVentas").textContent = Number(resumen.cantidadVentas || 0).toLocaleString();
+        document.getElementById("cantidadGastos").textContent = Number(resumen.cantidadGastos || 0).toLocaleString();
+        pintarGastosPeriodo(resumen.gastosDetalle);
+    }
+
+    async function cargarResumenMensual(){
+        try{
+            if(typeof obtenerResumenMensualSupabase !== "function"){
+                throw new Error("Supabase no disponible");
+            }
+            let resumen = await obtenerResumenMensualSupabase();
+            pintarResumenMensual(resumen);
+        }catch(error){
+            console.error("No se pudo cargar el resumen mensual:", error);
+            alert("No se pudo cargar el resumen mensual. Intente de nuevo.");
+        }
+    }
+
+    function cerrarMesActual(boton){
+        return ejecutarAccionCritica(boton, async function(){
+            if(!resumenMensualActual || !resumenMensualActual.periodo || !resumenMensualActual.periodo.id){
+                alert("No hay un periodo mensual abierto para cerrar.");
+                return false;
+            }
+
+            let mensaje =
+                "Se cerrará el periodo mensual:\\n\\n" +
+                resumenMensualActual.periodo.nombre + "\\n" +
+                "Inicio: " + fechaHora(resumenMensualActual.periodo.inicio) + "\\n" +
+                "Ventas: " + moneda(resumenMensualActual.ventas) + "\\n" +
+                "Gastos: " + moneda(resumenMensualActual.gastos) + "\\n" +
+                "Resultado neto: " + moneda(resumenMensualActual.resultado) + "\\n\\n" +
+                "Esta acción guarda una fotografía histórica y abre un nuevo periodo mensual. No borra ventas, gastos ni facturas.\\n\\n" +
+                "¿Desea cerrar el mes?";
+
+            if(!confirm(mensaje)){
+                return false;
+            }
+
+            try{
+                let idempotencyKey = crearIdempotencyKeyCirigua("cierre-mensual");
+                let cierre = await cerrarMesSupabase(resumenMensualActual.periodo.id, idempotencyKey);
+                alert("Cierre mensual guardado: " + cierre.nombrePeriodo);
+                await cargarResumenMensual();
+                return true;
+            }catch(error){
+                console.error("No se pudo cerrar el mes:", error);
+                alert("No se pudo cerrar el mes. Los datos fueron conservados.");
+                return false;
+            }
+        });
+    }
+
+    ciriguaAuthReady.then(cargarResumenMensual);
+    </script>
+    <script src="pwa.js"></script>
+</body>
+
+</html>

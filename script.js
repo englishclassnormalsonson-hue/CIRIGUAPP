@@ -393,6 +393,7 @@ function actualizarPedido() {
 }
 
 window.onload = async function () {
+    await ciriguaAuthReady;
 
     const { data: categorias, error: errorCategorias } =
         await supabaseClient

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial Mensual</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CIRIGUAPP">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
+</head>
+
+<body>
+
+    <div class="encabezado encabezado-dashboard">
+        <div>
+            <h1>📆 Historial Mensual</h1>
+            <p>Cierres mensuales conservados para auditoría.</p>
+        </div>
+        <button class="volver boton-principal" onclick="window.location.href='index.html'">🏠 Inicio</button>
+    </div>
+
+    <div id="listaCierresMensuales" class="lista-cierres"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="auth.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    function moneda(valor){
+        return "$" + Number(valor || 0).toLocaleString();
+    }
+
+    function fechaHora(valor){
+        if(!valor){
+            return "N/A";
+        }
+        let fecha = new Date(valor);
+        if(isNaN(fecha.getTime())){
+            return String(valor);
+        }
+        return fecha.toLocaleString();
+    }
+
+    function construirListaMovimiento(items, tipo){
+        if(!Array.isArray(items) || items.length === 0){
+            return '<p class="historial-cierre-empty">No hay movimientos en este bloque.</p>';
+        }
+
+        return '<div class="historial-cierre-list">' + items.map(function(item){
+            let nombre = tipo === "venta" ?
+                ("Factura " + (item.factura || item.id || "N/A")) :
+                (item.concepto || "Gasto");
+            let valor = tipo === "venta" ? item.total : item.valor;
+            return '<div class="historial-cierre-list-item"><span>' +
+                nombre +
+                '<small>' + fechaHora(item.timestamp) + '</small></span><strong>' +
+                moneda(valor) +
+                '</strong></div>';
+        }).join('') + '</div>';
+    }
+
+    function construirTarjetaMensual(cierre){
+        return `
+            <article class="tarjeta-cierre">
+                <div class="tarjeta-cierre-header">
+                    <div>
+                        <strong>${cierre.nombrePeriodo}</strong>
+                        <span>${fechaHora(cierre.inicioPeriodo)} - ${fechaHora(cierre.finPeriodo)}</span>
+                    </div>
+                    <span class="historial-cierre-badge">Ventas: ${Number(cierre.cantidadVentas)}</span>
+                </div>
+                <div class="tarjeta-cierre-grid">
+                    <div><span>Total vendido</span><strong>${moneda(cierre.ventas)}</strong></div>
+                    <div><span>Total gastos</span><strong>${moneda(cierre.gastos)}</strong></div>
+                    <div><span>Resultado neto</span><strong>${moneda(cierre.resultado)}</strong></div>
+                    <div><span>Cantidad ventas</span><strong>${Number(cierre.cantidadVentas)}</strong></div>
+                    <div><span>Cantidad gastos</span><strong>${Number(cierre.cantidadGastos)}</strong></div>
+                    <div><span>Cierre</span><strong>${cierre.fecha} ${cierre.hora}</strong></div>
+                </div>
+                <details class="historial-cierre-details">
+                    <summary>Ver detalle de auditoría</summary>
+                    <div class="historial-cierre-detail-body">
+                        <div class="historial-cierre-detail-block">
+                            <p><strong>Inicio real:</strong> ${fechaHora(cierre.inicioPeriodo)}</p>
+                            <p><strong>Fin real:</strong> ${fechaHora(cierre.finPeriodo)}</p>
+                            <p><strong>Timestamp:</strong> ${cierre.timestamp || 'N/A'}</p>
+                        </div>
+                        <div class="historial-cierre-detail-block">
+                            <h4>Ventas incluidas</h4>
+                            ${construirListaMovimiento(cierre.ventasDetalle, "venta")}
+                        </div>
+                        <div class="historial-cierre-detail-block">
+                            <h4>Gastos incluidos</h4>
+                            ${construirListaMovimiento(cierre.gastosDetalle, "gasto")}
+                        </div>
+                    </div>
+                </details>
+            </article>`;
+    }
+
+    async function cargarHistorialMensual(){
+        let contenedor = document.getElementById("listaCierresMensuales");
+        try{
+            if(typeof obtenerCierresMensualesSupabase !== "function"){
+                throw new Error("Supabase no disponible");
+            }
+            let cierres = await obtenerCierresMensualesSupabase();
+            let ordenados = cierres.slice().reverse();
+            if(ordenados.length === 0){
+                contenedor.innerHTML = '<div class="tarjeta-vacia"><h2>No hay cierres mensuales</h2><p>Realice un cierre mensual para ver el historial aquí.</p></div>';
+                return;
+            }
+            contenedor.innerHTML = ordenados.map(construirTarjetaMensual).join("");
+        }catch(error){
+            console.error("No se pudo cargar el historial mensual:", error);
+            contenedor.innerHTML = '<div class="tarjeta-vacia"><h2>No se pudo cargar el historial</h2><p>Intente de nuevo.</p></div>';
+        }
+    }
+
+    ciriguaAuthReady.then(cargarHistorialMensual);
+    </script>
+    <script src="pwa.js"></script>
+</body>
+
+</html>

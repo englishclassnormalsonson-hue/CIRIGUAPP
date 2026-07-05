@@ -6,6 +6,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial Diario</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="CIRIGUAPP">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon-192.png" type="image/png">
 </head>
 
 <body>
@@ -15,7 +23,10 @@
             <h1>📊 Historial Diario</h1>
             <p>Resumen ejecutivo de los cierres de caja por día</p>
         </div>
-        <button class="volver boton-principal" onclick="window.location.href='ventas.html'">⬅ Volver al Dashboard</button>
+        <div class="acciones-header">
+            <button class="volver boton-principal" onclick="window.location.href='index.html'">🏠 Inicio</button>
+            <button class="volver boton-secundario" onclick="window.location.href='ventas.html'">⬅ Dashboard</button>
+        </div>
     </div>
 
     <div class="panel-filtros">
@@ -34,6 +45,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="supabase.js"></script>
+    <script src="auth.js"></script>
     <script src="utils.js"></script>
     <script>
     function formatoMoneda(valor) {
@@ -75,6 +87,7 @@
 
         contenedor.innerHTML = '';
         filtrado.forEach(function(cierre, indice){
+            let administrador = cierre.administrador || 'No registrado';
             let tarjeta = document.createElement('div');
             tarjeta.classList.add('tarjeta-cierre');
             tarjeta.innerHTML =
@@ -82,6 +95,7 @@
                 '<div class="tarjeta-cierre-titulo">' +
                 '<strong>' + cierre.fecha + '</strong>' +
                 '<span>' + cierre.hora + '</span>' +
+                '<span>Cerrado por: ' + administrador + '</span>' +
                 '</div>' +
                 '<button class="boton-secundario" onclick="mostrarDetalle(' + indice + ')">Ver detalle</button>' +
                 '</div>' +
@@ -113,6 +127,7 @@
         }
         let detalle = document.getElementById('detalleCierre');
         detalle.style.display = 'block';
+        let administrador = cierre.administrador || 'No registrado';
         let gastosHtml = '';
         if(Array.isArray(cierre.gastosDetalle) && cierre.gastosDetalle.length > 0){
             gastosHtml = '<div><h3>Gastos</h3><ul>' + cierre.gastosDetalle.map(function(g){
@@ -126,6 +141,7 @@
             '<div><h2>Detalle del cierre</h2><span>' + cierre.fecha + ' • ' + cierre.hora + '</span></div>' +
             '</div>' +
             '<div class="detalle-card-grid">' +
+            '<div><span>Administrador</span><strong>' + administrador + '</strong></div>' +
             '<div><span>Ventas</span><strong>' + formatoMoneda(cierre.ventas) + '</strong></div>' +
             '<div><span>Gastos</span><strong>' + formatoMoneda(cierre.gastos) + '</strong></div>' +
             '<div><span>Utilidad</span><strong>' + formatoMoneda(cierre.utilidad) + '</strong></div>' +
@@ -139,9 +155,10 @@
     }
 
     document.getElementById('filtroFecha').addEventListener('change', cargarHistorialDiario);
-    cargarHistorialDiario();
+    ciriguaAuthReady.then(cargarHistorialDiario);
     </script>
 
+<script src="pwa.js"></script>
 </body>
 
 </html>
