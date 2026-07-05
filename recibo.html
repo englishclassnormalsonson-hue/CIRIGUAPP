@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Precuenta</title>
+
+<style>
+
+body{
+
+    font-family: Arial, sans-serif;
+
+    max-width:300px;
+
+    margin:auto;
+
+    padding:15px;
+
+    background:white;
+
+    color:black;
+}
+
+h1{
+
+    text-align:center;
+
+    margin-bottom:5px;
+}
+
+h2{
+
+    text-align:center;
+
+    margin-top:0;
+}
+
+.linea{
+
+    border-top:1px dashed black;
+
+    margin:10px 0;
+}
+
+#productos{
+
+    margin-top:15px;
+}
+
+.item{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    margin-bottom:5px;
+}
+
+.total{
+
+    font-size:22px;
+
+    font-weight:bold;
+
+    text-align:center;
+
+    margin-top:15px;
+}
+
+.imprimir{
+
+    width:100%;
+
+    height:60px;
+
+    margin-top:20px;
+
+    background:#16a34a;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:20px;
+
+    cursor:pointer;
+}
+
+@media print{
+
+    .imprimir{
+
+        display:none;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<img
+src="logo.png"
+style="
+width:120px;
+display:block;
+margin:0 auto 10px;
+">
+
+<h1 style="margin:5px 0;">
+CAFÉ BAR
+</h1>
+
+<h2 style="margin:0;">
+EL CIRIGUA
+</h2>
+
+<div style="
+text-align:center;
+font-size:15px;
+margin-top:10px;
+line-height:1.5;
+">
+
+Sonsón - Antioquia<br>
+
+Colombia
+
+</div>
+
+<div class="linea"></div>
+
+<div id="datos"></div>
+
+<div class="linea"></div>
+
+<div class="encabezado-tabla">
+
+    <span>CANT.</span>
+
+    <span>DESCRIPCIÓN</span>
+
+    <span>VALOR</span>
+
+</div>
+
+<div class="linea"></div>
+
+<div id="productos"></div>
+
+<div class="linea"></div>
+
+<div class="total" id="total"></div>
+
+<div class="linea"></div>
+
+<div class="mensaje-final">
+
+    <h2>¡Gracias por su visita!</h2>
+
+    <p>Los esperamos pronto</p>
+
+</div>
+
+<button
+class="imprimir"
+onclick="window.print()">
+
+🖨️ Imprimir
+
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+<script>
+
+const parametros =
+new URLSearchParams(window.location.search);
+
+let mesa =
+parametros.get("mesa");
+
+let cliente =
+parametros.get("cliente");
+
+let datosCliente = leerProductosCliente(mesa, cliente);
+let historial = obtenerHistorialVentas();
+let ultimaVenta = obtenerUltimaVenta();
+let tienePedidoActivo = Object.keys(datosCliente).length > 0;
+
+let ultimaFactura = null;
+
+if(!tienePedidoActivo){
+    let clienteSeleccion = Number(cliente);
+    if(ultimaVenta && Number(ultimaVenta.mesa) === Number(mesa) &&
+        (Number(ultimaVenta.cliente) === clienteSeleccion ||
+         (Number(ultimaVenta.cliente) === 0 &&
+          String(ultimaVenta.tipo || '').toLowerCase().indexOf('cobro mesa') !== -1 &&
+          ((ultimaVenta.productosPorCliente && ultimaVenta.productosPorCliente['cliente_' + clienteSeleccion]) ||
+           (ultimaVenta.productos && typeof ultimaVenta.productos === 'object' && ultimaVenta.productos['cliente_' + clienteSeleccion]))))){
+        ultimaFactura = ultimaVenta;
+    } else {
+        ultimaFactura = historial.slice().reverse().find(function(f){
+            return Number(f.mesa) === Number(mesa) &&
+                (Number(f.cliente) === clienteSeleccion ||
+                 (Number(f.cliente) === 0 &&
+                  String(f.tipo || '').toLowerCase().indexOf('cobro mesa') !== -1 &&
+                  ((f.productosPorCliente && f.productosPorCliente['cliente_' + clienteSeleccion]) ||
+                   (f.productos && typeof f.productos === 'object' && f.productos['cliente_' + clienteSeleccion]))));
+        }) || null;
+    }
+}
+
+let ahora = null;
+if(ultimaFactura){
+    if(ultimaFactura.timestamp){
+        let fechaTimestamp = new Date(ultimaFactura.timestamp);
+        if(!isNaN(fechaTimestamp.getTime())){
+            ahora = fechaTimestamp;
+        }
+    }
+    if(!ahora){
+        ahora = parseFechaHoraLocal(ultimaFactura.fecha, ultimaFactura.hora);
+    }
+}
+if(!ahora){
+    ahora = new Date();
+}
+
+let numeroFactura = ultimaFactura ? ultimaFactura.factura : obtenerConsecutivoFactura();
+
+if(ultimaFactura){
+    if(ultimaFactura.productosPorCliente && ultimaFactura.productosPorCliente['cliente_' + cliente]){
+        datosCliente = ultimaFactura.productosPorCliente['cliente_' + cliente] || {};
+    } else if(ultimaFactura.productos){
+        if(Array.isArray(ultimaFactura.productos)){
+            datosCliente = {};
+            ultimaFactura.productos.forEach(function(producto){
+                if(!producto || !producto.nombre) return;
+                datosCliente[producto.nombre] = {
+                    cantidad: Number(producto.cantidad) || 0,
+                    precio: Number(producto.precio) || 0
+                };
+            });
+        } else if(typeof ultimaFactura.productos === 'object'){
+            if(ultimaFactura.productos['cliente_' + cliente]){
+                datosCliente = ultimaFactura.productos['cliente_' + cliente] || {};
+            } else {
+                datosCliente = ultimaFactura.productos;
+            }
+        }
+    }
+}
+
+document.getElementById("datos").innerHTML =
+
+"<b>Factura N°:</b> " +
+String(numeroFactura).padStart(6,"0") +
+"<br><br><b>Mesa:</b> " +
+mesa +
+"<br><b>Cliente:</b> " +
+cliente +
+"<br><b>Tipo:</b> " + (ultimaFactura ? ultimaFactura.tipo : "Cobro Individual") +
+"<br><b>Fecha:</b> " +
+ahora.toLocaleDateString() +
+"<br><b>Hora:</b> " +
+ahora.toLocaleTimeString();
+if(ultimaFactura){
+    document.title = "Factura #" + String(numeroFactura).padStart(6,"0");
+}
+
+let html = "";
+
+let total = 0;
+
+for(let nombre in datosCliente){
+
+    let item =
+    datosCliente[nombre];
+
+    if(!item || typeof item !== "object" || Array.isArray(item)){
+        continue;
+    }
+
+    let cantidad =
+    Number(item.cantidad);
+
+    let precio =
+    Number(item.precio);
+
+    if(!Number.isFinite(cantidad) || !Number.isFinite(precio)){
+        continue;
+    }
+
+    if(cantidad <= 0 || precio < 0){
+        continue;
+    }
+
+    let subtotal =
+    cantidad * precio;
+
+    total += subtotal;
+
+    html +=
+
+    "<div class='item'>" +
+
+    "<span>" +
+
+    cantidad + " x " + nombre +
+
+    "</span>" +
+
+    "<span>$" +
+
+    subtotal.toLocaleString() +
+
+    "</span>" +
+
+    "</div>";
+}
+
+document.getElementById("productos").innerHTML =
+html;
+
+document.getElementById("total").innerHTML =
+
+"TOTAL: $" +
+
+total.toLocaleString();
+
+function renderizarReciboIndividual(venta){
+    if(!venta){
+        return;
+    }
+    let datos = {};
+    if(venta.productosPorCliente && venta.productosPorCliente['cliente_' + cliente]){
+        datos = venta.productosPorCliente['cliente_' + cliente] || {};
+    }else if(venta.productos && venta.productos['cliente_' + cliente]){
+        datos = venta.productos['cliente_' + cliente] || {};
+    }else if(Number(venta.cliente) === Number(cliente)){
+        datos = venta.productos || {};
+    }else{
+        return;
+    }
+
+    let fechaVenta = venta.timestamp ? new Date(venta.timestamp) : new Date();
+    if(isNaN(fechaVenta.getTime())){
+        fechaVenta = new Date();
+    }
+
+    document.getElementById("datos").innerHTML =
+        "<b>Factura N°:</b> " +
+        String(venta.factura).padStart(6,"0") +
+        "<br><br><b>Mesa:</b> " +
+        mesa +
+        "<br><b>Cliente:</b> " +
+        cliente +
+        "<br><b>Tipo:</b> " + venta.tipo +
+        "<br><b>Fecha:</b> " +
+        fechaVenta.toLocaleDateString() +
+        "<br><b>Hora:</b> " +
+        fechaVenta.toLocaleTimeString();
+
+    let htmlRemoto = "";
+    let totalRemoto = 0;
+    for(let nombre in datos){
+        let item = datos[nombre];
+        if(!item || typeof item !== "object" || Array.isArray(item)){
+            continue;
+        }
+        let cantidad = Number(item.cantidad);
+        let precio = Number(item.precio);
+        if(!Number.isFinite(cantidad) || !Number.isFinite(precio) || cantidad <= 0 || precio < 0){
+            continue;
+        }
+        let subtotal = cantidad * precio;
+        totalRemoto += subtotal;
+        htmlRemoto += "<div class='item'><span>" + cantidad + " x " + nombre + "</span><span>$" + subtotal.toLocaleString() + "</span></div>";
+    }
+
+    document.getElementById("productos").innerHTML = htmlRemoto;
+    document.getElementById("total").innerHTML = "TOTAL: $" + totalRemoto.toLocaleString();
+    document.title = "Factura #" + String(venta.factura).padStart(6,"0");
+}
+
+async function actualizarReciboDesdeSupabase(){
+    if(tienePedidoActivo || typeof obtenerVentasSupabase !== "function"){
+        return;
+    }
+    try{
+        let ventas = await obtenerVentasSupabase();
+        guardarHistorialVentasEnCache(ventas);
+        let venta = ventas.slice().reverse().find(function(f){
+            return Number(f.mesa) === Number(mesa) &&
+                (Number(f.cliente) === Number(cliente) ||
+                 (Number(f.cliente) === 0 &&
+                  f.productosPorCliente &&
+                  f.productosPorCliente['cliente_' + cliente]));
+        });
+        renderizarReciboIndividual(venta);
+    }catch(error){
+        console.warn("No se pudo actualizar recibo desde Supabase.", error);
+    }
+}
+
+actualizarReciboDesdeSupabase();
+
+</script>
+
+</body>
+
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cierre de Caja</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado">
+
+        <h1>🔒 Cierre de Caja</h1>
+
+        <p>Resumen del Día</p>
+
+    </div>
+
+    <div class="total-mesa">
+
+        VENTAS DEL DÍA
+
+        <h2 id="ventas">$0</h2>
+
+    </div>
+
+    <div class="total-mesa">
+
+        GASTOS DEL DÍA
+
+        <h2 id="gastos">$0</h2>
+
+    </div>
+
+    <div class="total-mesa">
+
+        UTILIDAD
+
+        <h2 id="utilidad">$0</h2>
+
+    </div>
+
+<button class="guardar"
+    onclick="cerrarCaja(this)">
+
+        🔒 Cerrar Caja
+
+    </button>
+
+    <button class="volver"
+    onclick="window.location.href='index.html'">
+
+        ⬅ Volver
+
+    </button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+<script>
+
+let resumenDia = obtenerResumenDelDia();
+let ventas = resumenDia.totalVentas;
+let cantidadFacturas = resumenDia.cantidadFacturas;
+let clientesAtendidos = resumenDia.clientesAtendidos;
+let productoTop = resumenDia.productoTop;
+let promedio = resumenDia.promedio;
+
+let listaGastos = obtenerGastosHoy();
+
+let gastos = calcularTotalGastos(listaGastos);
+
+let utilidad =
+    ventas - gastos;
+
+function pintarResumenCierre(){
+    utilidad = ventas - gastos;
+    document.getElementById("ventas").innerHTML =
+    "$" + ventas.toLocaleString();
+
+    document.getElementById("gastos").innerHTML =
+    "$" + gastos.toLocaleString();
+
+    document.getElementById("utilidad").innerHTML =
+    "$" + utilidad.toLocaleString();
+}
+
+async function cargarResumenCierre(){
+    if(typeof obtenerVentasSupabase !== "function" || typeof obtenerGastosSupabase !== "function"){
+        pintarResumenCierre();
+        return;
+    }
+    try{
+        let ventasSupabase = await obtenerVentasSupabase();
+        let ventasAbiertas = ventasSupabase.filter(function(venta){
+            return !venta.cierre_id;
+        });
+        ventas = sumarTotalVentas(ventasAbiertas);
+        cantidadFacturas = ventasAbiertas.length;
+        clientesAtendidos = 0;
+        let productoContador = {};
+        ventasAbiertas.forEach(function(venta){
+            clientesAtendidos += contarClientesVenta(venta);
+            let productosNormalizados = normalizarProductosVenta(venta);
+            for(let nombre in productosNormalizados){
+                productoContador[nombre] =
+                    (productoContador[nombre] || 0) + Number(productosNormalizados[nombre].cantidad);
+            }
+        });
+        productoTop = "-";
+        let maxCantidad = 0;
+        Object.keys(productoContador).forEach(function(producto){
+            if(productoContador[producto] > maxCantidad){
+                maxCantidad = productoContador[producto];
+                productoTop = producto;
+            }
+        });
+        promedio = cantidadFacturas > 0 ? ventas / cantidadFacturas : 0;
+        listaGastos = await obtenerGastosSupabase();
+        gastos = calcularTotalGastos(listaGastos);
+        setStorageItem("historialVentas", JSON.stringify(ventasSupabase));
+        setStorageItem("gastosHoy", JSON.stringify(listaGastos));
+    }catch(error){
+        console.warn("No se pudo cargar resumen desde Supabase; usando cache local.", error);
+    }
+    pintarResumenCierre();
+}
+
+function cerrarCaja(boton){
+    return ejecutarAccionCritica(boton, async function(){
+
+    let confirmar =
+        confirm(
+            "¿Desea cerrar la caja del día?"
+        );
+
+    if(!confirmar){
+        return false;
+    }
+
+    if(typeof cerrarCajaSupabase === "function"){
+        try{
+            let cierreSupabase = await cerrarCajaSupabase();
+            let cierresActuales = safeParse(localStorage.getItem("cierresCaja"), []) || [];
+            if(!Array.isArray(cierresActuales)){
+                cierresActuales = [];
+            }
+            cierresActuales.push(cierreSupabase);
+            setStorageItem("cierresCaja", JSON.stringify(cierresActuales));
+            setStorageItem("ultimoCierreCaja", JSON.stringify({
+                fecha: cierreSupabase.fecha,
+                hora: cierreSupabase.hora,
+                timestamp: cierreSupabase.timestamp
+            }));
+            setStorageItem("gastosHoy", JSON.stringify([]));
+            removeStorageItem("ultimaVenta");
+            alert("Caja cerrada correctamente");
+            location.reload();
+            return true;
+        }catch(error){
+            console.error("No se pudo cerrar caja en Supabase:", error);
+            alert("No se pudo cerrar la caja. Los datos fueron conservados.");
+            return false;
+        }
+    }
+
+    alert("Supabase no está disponible para cerrar la caja. Los datos fueron conservados.");
+    return false;
+    });
+}
+
+cargarResumenCierre();
+
+</script>
+
+</body>
+
+</html>

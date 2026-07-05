@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Administrativo</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado">
+
+        <h1>📊 Dashboard Administrativo</h1>
+
+        <p>Resumen General de El Cirigua</p>
+
+    </div>
+
+    <div class="panel-resumen">
+
+        <div class="tarjeta-resumen">
+            <h3>💰 Ventas Totales</h3>
+            <p id="ventasHoy">$0</p>
+            <div class="subtexto">Ingresos acumulados del día</div>
+        </div>
+
+        <div class="tarjeta-resumen">
+            <h3>🧾 Facturas</h3>
+            <p id="facturas">0</p>
+            <div class="subtexto">Transacciones registradas</div>
+        </div>
+
+        <div class="tarjeta-resumen">
+            <h3>💵 Promedio</h3>
+            <p id="promedio">$0</p>
+            <div class="subtexto">Promedio por factura</div>
+        </div>
+
+        <div class="tarjeta-resumen">
+            <h3>🏆 Producto Top</h3>
+            <p id="productoTop">-</p>
+            <div class="subtexto">Más vendido</div>
+        </div>
+
+        <div class="tarjeta-resumen">
+            <h3>👥 Clientes</h3>
+            <p id="clientesAtendidos">0</p>
+            <div class="subtexto">Clientes atendidos</div>
+        </div>
+
+    </div>
+
+    <div class="acciones" style="margin-top:8px; gap:8px; display:flex; flex-wrap:wrap;">
+        <button class="historial-btn" onclick="window.location.href='historial.html'">🧾 Historial de Ventas</button>
+        <button class="historial-btn" onclick="window.location.href='historial-diario.html'">📊 Historial Diario</button>
+        <button class="volver" onclick="window.location.href='index.html'">⬅ Volver</button>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+<script>
+
+async function updateDashboard(){
+    if(typeof obtenerVentasSupabase === "function"){
+        try{
+            let ventasSupabase = await obtenerVentasSupabase();
+            guardarHistorialVentasEnCache(ventasSupabase);
+        }catch(error){
+            console.warn("No se pudieron leer ventas desde Supabase; usando cache local.", error);
+        }
+    }
+
+    let historialVentas = obtenerVentasDelDia();
+    if(!Array.isArray(historialVentas)){
+        historialVentas = [];
+    }
+
+    let totalVentas = 0;
+    let cantidadFacturas = historialVentas.length;
+    let productoContador = {};
+    let clientesAtendidos = 0;
+
+    historialVentas.forEach(function(venta){
+        totalVentas += Number(venta.total) || 0;
+        clientesAtendidos += contarClientesVenta(venta);
+        let productosNormalizados = normalizarProductosVenta(venta);
+        for(let nombre in productosNormalizados){
+            productoContador[nombre] =
+                (productoContador[nombre] || 0) + Number(productosNormalizados[nombre].cantidad);
+        }
+    });
+
+    let promedio = cantidadFacturas > 0 ? totalVentas / cantidadFacturas : 0;
+
+    let productoTop = "-";
+    let maxCantidad = 0;
+
+    Object.keys(productoContador).forEach(function(producto){
+        if(productoContador[producto] > maxCantidad){
+            maxCantidad = productoContador[producto];
+            productoTop = producto;
+        }
+    });
+
+    document.getElementById("ventasHoy").innerHTML = "$" + totalVentas.toLocaleString();
+    document.getElementById("facturas").textContent = cantidadFacturas;
+    document.getElementById("promedio").innerHTML = "$" + Math.round(promedio).toLocaleString();
+    document.getElementById("productoTop").textContent = productoTop;
+    document.getElementById("clientesAtendidos").textContent = clientesAtendidos;
+}
+
+updateDashboard();
+
+function handleStorageUpdateEvent(e){
+    if(!e) return;
+    let key = e.key;
+    if(!key && e.detail){
+        key = e.detail.key;
+    }
+    if(!key) return;
+    const watchedKeys = ['historialVentas','ultimoCierreCaja','cierresCaja','gastosHoy'];
+    if(watchedKeys.includes(key)){
+        updateDashboard();
+    }
+}
+
+window.addEventListener('storage', handleStorageUpdateEvent);
+window.addEventListener('localStorageChange', handleStorageUpdateEvent);
+
+</script>
+
+</body>
+
+</html>

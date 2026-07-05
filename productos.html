@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Productos</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado">
+
+        <h1>PRODUCTOS</h1>
+
+        <p>Administración de Carta</p>
+
+    </div>
+
+    <div class="admin-panel">
+
+        <h2>Nuevo producto</h2>
+
+        <div class="formulario-producto">
+
+            <input id="nombreProducto" type="text" placeholder="Nombre del producto">
+
+            <input id="precioProducto" type="number" min="0" placeholder="Precio">
+
+            <select id="categoriaProducto">
+
+            </select>
+
+            <button class="guardar" onclick="agregarProductoAdmin(this)">
+                Guardar Producto
+            </button>
+
+        </div>
+
+        <h2>Nueva categoría</h2>
+
+        <div class="formulario-producto">
+
+            <input id="nombreCategoria" type="text" placeholder="Nombre de la categoría">
+
+            <button class="nuevo-cliente" onclick="agregarCategoria(this)">
+                Crear Categoría
+            </button>
+
+        </div>
+
+        <h2>Productos guardados</h2>
+
+        <div class="productos-admin" id="listaProductos">
+
+        </div>
+
+    </div>
+
+    <button class="volver"
+        onclick="window.location.href='index.html'">
+
+        ⬅ Volver
+
+    </button>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="utils.js"></script>
+    <script>
+
+let categoriasSupabase = [];
+let productosSupabase = [];
+
+function mostrarCategorias(){
+
+    let selector =
+        document.getElementById("categoriaProducto");
+
+    selector.innerHTML = "";
+
+    categoriasSupabase.forEach(function(categoria){
+
+        let opcion =
+            document.createElement("option");
+
+        opcion.value = categoria;
+
+        opcion.innerHTML = categoria;
+
+        selector.appendChild(opcion);
+    });
+}
+
+function mostrarProductos(){
+
+    let contenedor =
+        document.getElementById("listaProductos");
+
+    contenedor.innerHTML = "";
+
+    productosSupabase.forEach(function(producto){
+
+        let fila =
+            document.createElement("div");
+
+        fila.classList.add("producto-admin");
+
+        let nombre =
+            document.createElement("input");
+
+        nombre.type = "text";
+
+        nombre.value = producto.nombre;
+
+        let precio =
+            document.createElement("input");
+
+        precio.type = "number";
+
+        precio.min = "0";
+
+        precio.value = producto.precio;
+
+        let categoria =
+            document.createElement("select");
+
+        categoriasSupabase.forEach(function(nombreCategoria){
+
+            let opcion =
+                document.createElement("option");
+
+            opcion.value = nombreCategoria;
+
+            opcion.innerHTML = nombreCategoria;
+
+            if(nombreCategoria === producto.categoria){
+
+                opcion.selected = true;
+            }
+
+            categoria.appendChild(opcion);
+        });
+
+        let guardar =
+            document.createElement("button");
+
+        guardar.classList.add("guardar-producto");
+
+        guardar.innerHTML = "Guardar";
+
+        guardar.onclick = function(){
+
+            editarProducto(
+                guardar,
+                producto.id,
+                nombre.value,
+                precio.value,
+                categoria.value
+            );
+        };
+
+        let eliminar =
+            document.createElement("button");
+
+        eliminar.classList.add("eliminar-producto");
+
+        eliminar.innerHTML = producto.activo === false ? "Activar" : "Desactivar";
+
+        eliminar.onclick = function(){
+
+            cambiarEstadoProducto(eliminar, producto.id);
+        };
+
+        fila.appendChild(nombre);
+        fila.appendChild(precio);
+        fila.appendChild(categoria);
+        fila.appendChild(guardar);
+        fila.appendChild(eliminar);
+
+        contenedor.appendChild(fila);
+    });
+}
+
+function agregarProductoAdmin(boton){
+    return ejecutarAccionCritica(boton, async function(){
+
+        let nombre =
+            document.getElementById("nombreProducto").value.trim();
+
+        let precio =
+            parseInt(
+                document.getElementById("precioProducto").value
+            ) || 0;
+
+        let categoria =
+            document.getElementById("categoriaProducto").value;
+
+        if(nombre === "" || precio <= 0){
+
+            alert("Escribe nombre y precio válido.");
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        if(existeProductoConNombre(productosSupabase, nombre)){
+
+            alert("Ese producto ya existe.");
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        try{
+
+            const { data: categoriaEncontrada, error: errorCategoria } =
+                await supabaseClient
+                    .from("categorias")
+                    .select("id")
+                    .eq("nombre", categoria)
+                    .single();
+
+            if(errorCategoria){
+                throw errorCategoria;
+            }
+
+            const nuevoProducto =
+                await crearProductoSupabase(
+                    nombre,
+                    precio,
+                    categoriaEncontrada.id,
+                    productosSupabase.length + 1
+                );
+
+            productosSupabase.push({
+                id: nuevoProducto.id,
+                nombre: nuevoProducto.nombre,
+                precio: nuevoProducto.precio,
+                categoria: categoria,
+                activo: nuevoProducto.activo
+            });
+
+            registrarAuditoria("producto_creado", {
+                nombre: nombre,
+                precio: precio,
+                categoria: categoria
+            });
+
+            document.getElementById("nombreProducto").value = "";
+            document.getElementById("precioProducto").value = "";
+
+            mostrarProductos();
+
+        }catch(error){
+
+            console.error("Error guardando producto en Supabase:", error);
+
+            alert("No se pudo guardar el producto.");
+
+        }finally{
+
+            if(boton){
+                boton.disabled = false;
+            }
+        }
+    });
+}
+
+function editarProducto(boton, id, nombre, precio, categoria){
+    return ejecutarAccionCritica(boton, async function(){
+
+        nombre = nombre.trim();
+        precio = parseInt(precio) || 0;
+
+        if(nombre === "" || precio <= 0){
+
+            alert("Escribe nombre y precio válido.");
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        if(existeProductoConNombre(productosSupabase, nombre, id)){
+
+            alert("Ese producto ya existe.");
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        let productoActual =
+            productosSupabase.find(function(producto){
+                return producto.id === id;
+            });
+
+        if(!productoActual){
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        try{
+
+            const { data: categoriaEncontrada, error: errorCategoria } =
+                await supabaseClient
+                    .from("categorias")
+                    .select("id")
+                    .eq("nombre", categoria)
+                    .single();
+
+            if(errorCategoria){
+                throw errorCategoria;
+            }
+
+            await editarProductoSupabase(
+                id,
+                nombre,
+                precio,
+                categoriaEncontrada.id
+            );
+
+            registrarAuditoria("producto_editado", {
+                id: id,
+                antes: {
+                    nombre: productoActual.nombre,
+                    precio: productoActual.precio,
+                    categoria: productoActual.categoria
+                },
+                despues: {
+                    nombre: nombre,
+                    precio: precio,
+                    categoria: categoria
+                }
+            });
+
+            productoActual.nombre = nombre;
+            productoActual.precio = precio;
+            productoActual.categoria = categoria;
+
+            mostrarProductos();
+
+        }catch(error){
+
+            console.error("Error editando producto en Supabase:", error);
+
+            alert("No se pudo editar el producto.");
+
+        }finally{
+
+            if(boton){
+                boton.disabled = false;
+            }
+        }
+    });
+}
+
+function cambiarEstadoProducto(boton, id){
+    return ejecutarAccionCritica(boton, async function(){
+
+        let productoActual =
+            productosSupabase.find(function(producto){
+                return producto.id === id;
+            });
+
+        if(!productoActual){
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        let activar = productoActual.activo === false;
+
+        let confirmar =
+            confirm(activar ? "¿Activar este producto?" : "¿Desactivar este producto?");
+
+        if(!confirmar){
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        try{
+
+            await cambiarEstadoProductoSupabase(id, activar);
+
+            if(!activar){
+                guardarEnPapelera("producto", productoActual);
+            }
+
+            registrarAuditoria(
+                activar ? "producto_activado" : "producto_desactivado",
+                productoActual
+            );
+
+            productoActual.activo = activar;
+
+            mostrarProductos();
+
+        }catch(error){
+
+            console.error("Error cambiando estado del producto en Supabase:", error);
+
+            alert("No se pudo cambiar el estado del producto.");
+
+        }finally{
+
+            if(boton){
+                boton.disabled = false;
+            }
+        }
+    });
+}
+
+function agregarCategoria(boton){
+    return ejecutarAccionCritica(boton, async function(){
+
+        let nombre =
+            document.getElementById("nombreCategoria").value.trim();
+
+        if(nombre === ""){
+
+            alert("Escribe el nombre de la categoría.");
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        if(existeCategoriaConNombre(categoriasSupabase, nombre)){
+
+            alert("Esa categoría ya existe.");
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        try{
+
+            const nuevaCategoria =
+                await crearCategoriaSupabase(
+                    nombre,
+                    categoriasSupabase.length + 1
+                );
+
+            categoriasSupabase.push(nuevaCategoria.nombre);
+
+            registrarAuditoria("categoria_creada", {
+                nombre: nombre
+            });
+
+            document.getElementById("nombreCategoria").value = "";
+
+            mostrarCategorias();
+            mostrarProductos();
+
+        }catch(error){
+
+            console.error("Error guardando categoría en Supabase:", error);
+
+            alert("No se pudo guardar la categoría.");
+
+        }finally{
+
+            if(boton){
+                boton.disabled = false;
+            }
+        }
+    });
+}
+
+async function iniciarProductos(){
+
+    prepararProductos();
+
+    const { data: categorias, error: errorCategorias } =
+        await supabaseClient
+            .from("categorias")
+            .select("nombre")
+            .eq("activo", true)
+            .order("orden");
+
+    if(errorCategorias){
+        console.error("Error leyendo categorías de Supabase:", errorCategorias);
+        return;
+    }
+
+    const { data: productos, error: errorProductos } =
+        await supabaseClient
+            .from("productos")
+            .select(`
+                id,
+                nombre,
+                precio,
+                activo,
+                categorias (
+                    nombre
+                )
+            `)
+            .order("orden");
+
+    if(errorProductos){
+        console.error("Error leyendo productos de Supabase:", errorProductos);
+        return;
+    }
+
+    categoriasSupabase = categorias.map(function(categoria){
+        return categoria.nombre;
+    });
+
+    productosSupabase = productos.map(function(producto){
+        return {
+            id: producto.id,
+            nombre: producto.nombre,
+            precio: producto.precio,
+            categoria: producto.categorias ? producto.categorias.nombre : "",
+            activo: producto.activo
+        };
+    });
+
+    mostrarCategorias();
+    mostrarProductos();
+}
+
+iniciarProductos();
+
+if(supabaseClient && typeof supabaseClient.channel === "function"){
+    supabaseClient
+        .channel("cirigua-productos")
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "productos"
+        }, function(){
+            iniciarProductos();
+        })
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "categorias"
+        }, function(){
+            iniciarProductos();
+        })
+        .subscribe();
+}
+
+</script>
+
+</body>
+
+</html>

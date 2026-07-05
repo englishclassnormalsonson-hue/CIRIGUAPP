@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Gastos del Día</title>
+
+<link rel="stylesheet"
+href="style.css">
+
+</head>
+
+<body>
+
+<div class="encabezado">
+
+<h1>💸 Gastos</h1>
+
+<p>Control de Gastos del Día</p>
+
+</div>
+
+<div class="clientes-container">
+
+    <div class="form-gastos">
+        <input type="text" id="concepto" placeholder="Concepto del gasto">
+        <input type="number" id="valor" placeholder="Valor">
+        <button class="guardar" onclick="guardarGasto(this)">➕ Agregar Gasto</button>
+    </div>
+
+    <div class="gastos-resumen">
+        <p>TOTAL GASTOS</p>
+        <h2 id="totalGastos">$0</h2>
+    </div>
+
+    <div id="listaGastos" class="gastos-lista"></div>
+
+</div>
+
+<div style="margin-top:18px; display:flex; justify-content:center;">
+    <button class="volver" onclick="window.location.href='index.html'">⬅ Volver</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script>
+
+let gastosPantalla = [];
+
+async function cargarGastos(){
+
+    let gastos = [];
+
+    if(typeof obtenerGastosSupabase === "function"){
+        try{
+            gastos = await obtenerGastosSupabase();
+            setStorageItem("gastosHoy", JSON.stringify(gastos));
+        }catch(error){
+            console.warn("No se pudieron leer gastos desde Supabase; usando cache local.", error);
+            gastos = obtenerGastosHoy();
+        }
+    }else{
+        gastos = obtenerGastosHoy();
+    }
+
+    gastosPantalla = gastos;
+
+    let total = calcularTotalGastos(gastos);
+
+    let lista =
+        document.getElementById("listaGastos");
+
+    lista.innerHTML = "";
+
+    gastos.forEach(function(gasto, indice){
+
+        let div =
+            document.createElement("div");
+
+        div.classList.add("cliente-card");
+        div.classList.add("gasto-item");
+
+        div.innerHTML =
+
+        gasto.concepto +
+
+        " - $" +
+
+        gasto.valor.toLocaleString();
+
+        let botonEliminar =
+            document.createElement("button");
+
+        botonEliminar.classList.add("eliminar-gasto");
+            botonEliminar.innerHTML = "❌ Eliminar";
+            botonEliminar.onclick = function(){
+                eliminarGasto(botonEliminar, indice);
+            };
+
+        div.appendChild(botonEliminar);
+        lista.appendChild(div);
+
+    });
+
+    document.getElementById("totalGastos").innerHTML =
+
+    "$" + total.toLocaleString();
+}
+
+function guardarGasto(boton){
+    return ejecutarAccionCritica(boton, async function(){
+
+    let concepto =
+        document.getElementById("concepto").value.trim();
+
+    let valor =
+        Number(
+            document.getElementById("valor").value
+        );
+
+    if(!concepto || !Number.isFinite(valor) || valor <= 0){
+
+        alert(
+            "Complete todos los campos con un valor válido"
+        );
+
+        return false;
+    }
+
+    try{
+        if(typeof crearGastoSupabase !== "function"){
+            throw new Error("Supabase no disponible");
+        }
+        await crearGastoSupabase(concepto, valor);
+    }catch(error){
+        console.error("No se pudo guardar el gasto en Supabase:", error);
+        alert("No se pudo guardar el gasto. Intente de nuevo.");
+        return false;
+    }
+    registrarAuditoria("gasto_creado", {
+        concepto: concepto,
+        valor: valor
+    });
+
+    document.getElementById("concepto").value = "";
+
+    document.getElementById("valor").value = "";
+
+    await cargarGastos();
+    if(boton){
+        boton.disabled = false;
+    }
+    });
+}
+
+function eliminarGasto(boton, indice){
+    return ejecutarAccionCritica(boton, async function(){
+    let gastos = gastosPantalla.length ? gastosPantalla.slice() : obtenerGastosHoy();
+    if(indice < 0 || indice >= gastos.length){
+        return false;
+    }
+    let confirmar = confirm("¿Está seguro de eliminar este gasto?");
+    if(!confirmar) return false;
+    try{
+        if(gastos[indice].id && typeof eliminarGastoSupabase === "function"){
+            await eliminarGastoSupabase(gastos[indice].id);
+        }else{
+            guardarEnPapelera("gasto", gastos[indice]);
+            gastos.splice(indice, 1);
+            setStorageItem("gastosHoy", JSON.stringify(gastos));
+        }
+    }catch(error){
+        console.error("No se pudo eliminar el gasto en Supabase:", error);
+        alert("No se pudo eliminar el gasto.");
+        return false;
+    }
+    await cargarGastos();
+    });
+}
+
+cargarGastos();
+
+</script>
+
+</body>
+
+</html>

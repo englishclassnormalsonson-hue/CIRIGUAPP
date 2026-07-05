@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedido Mesa</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="barra-superior">
+
+    <button
+    class="inicio"
+    onclick="window.location.href='index.html'">
+
+        🏠 Inicio
+
+    </button>
+
+</div>
+
+    <div class="encabezado">
+
+        <h1 id="tituloCliente">Mesa 1</h1>
+
+        <p>Gestión de Pedido</p>
+
+    </div>
+
+    <div class="pedido-container">
+
+        <h2>Productos</h2>
+
+        <input
+            class="buscar-producto"
+            id="buscarProducto"
+            type="search"
+            placeholder="Buscar producto..."
+            oninput="filtrarProductos()"
+        >
+
+        <div class="categorias-productos" id="categoriasProductos">
+
+        </div>
+
+        <h2>Venta rápida</h2>
+
+        <div class="venta-rapida" id="ventaRapida">
+
+        </div>
+
+        <div class="productos" id="productos">
+
+        </div>
+
+        <h2>Pedido Actual</h2>
+
+<div class="pedido" id="pedido">
+
+</div>
+
+<div class="total" id="total">
+
+    TOTAL: $0
+
+</div>
+
+        </div>
+
+<div class="acciones">
+    
+    <button class="cobrar" onclick="cobrarCliente(this)">
+        💰 Cobrar Cliente
+    </button>
+
+    <button class="recibo-btn" onclick="verRecibo()">
+        🧾 Ver Recibo
+    </button>
+
+</div>
+
+<div class="acciones-volver">
+
+    <button class="inicio"
+    onclick="window.location.href='index.html'">
+        🏠 Inicio
+    </button>
+
+    <button class="recibo-mesa"
+    onclick="verReciboMesa()">
+        🧾 Recibo Mesa
+    </button>
+
+    <button class="volver"
+    id="botonVolver">
+        ⬅ Volver
+    </button>
+
+</div>
+
+<script>
+
+const parametrosPedido =
+new URLSearchParams(window.location.search);
+
+let mesa =
+parametrosPedido.get("mesa") || 1;
+
+let cliente =
+parametrosPedido.get("cliente") || 1;
+
+document.getElementById("tituloCliente").innerHTML =
+"Mesa " + mesa + " - Cliente " + cliente;
+
+document.getElementById("botonVolver").onclick = function(){
+
+    window.location.href =
+    "clientes.html?mesa=" + mesa;
+};
+
+function verReciboMesa(){
+
+    window.open(
+
+        "reciboMesa.html?mesa=" + mesa,
+
+        "_blank"
+    );
+
+}
+
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+<script src="script.js"></script>
+
+</body>
+
+</html>

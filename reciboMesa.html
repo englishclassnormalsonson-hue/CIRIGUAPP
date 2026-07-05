@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Precuenta</title>
+
+<style>
+
+body{
+
+    font-family: Arial, sans-serif;
+
+    max-width:300px;
+
+    margin:auto;
+
+    padding:15px;
+
+    background:white;
+
+    color:black;
+}
+
+h1{
+
+    text-align:center;
+
+    margin-bottom:5px;
+}
+
+h2{
+
+    text-align:center;
+
+    margin-top:0;
+}
+
+.linea{
+
+    border-top:1px dashed black;
+
+    margin:10px 0;
+}
+
+#productos{
+
+    margin-top:15px;
+}
+
+.item{
+
+    display:flex;
+
+    justify-content:space-between;
+
+    margin-bottom:5px;
+}
+
+.total{
+
+    font-size:22px;
+
+    font-weight:bold;
+
+    text-align:center;
+
+    margin-top:15px;
+}
+
+.imprimir{
+
+    width:100%;
+
+    height:60px;
+
+    margin-top:20px;
+
+    background:#16a34a;
+
+    color:white;
+
+    border:none;
+
+    border-radius:10px;
+
+    font-size:20px;
+
+    cursor:pointer;
+}
+
+@media print{
+
+    .imprimir{
+
+        display:none;
+    }
+}
+
+</style>
+
+</head>
+
+<body>
+
+<img
+src="logo.png"
+style="
+width:120px;
+display:block;
+margin:0 auto 10px;
+">
+
+<h1 style="margin:5px 0;">
+CAFÉ BAR
+</h1>
+
+<h2 style="margin:0;">
+EL CIRIGUA
+</h2>
+
+<div style="
+text-align:center;
+font-size:15px;
+margin-top:10px;
+line-height:1.5;
+">
+
+Sonsón - Antioquia<br>
+
+Colombia
+
+</div>
+
+<div class="linea"></div>
+
+<div id="datos"></div>
+
+<div class="linea"></div>
+
+<div class="encabezado-tabla">
+
+    <span>CANT.</span>
+
+    <span>DESCRIPCIÓN</span>
+
+    <span>VALOR</span>
+
+</div>
+
+<div class="linea"></div>
+
+<div id="productos"></div>
+
+<div class="linea"></div>
+
+<div class="total" id="total"></div>
+
+<div class="linea"></div>
+
+<div class="mensaje-final">
+
+    <h2>¡Gracias por su visita!</h2>
+
+    <p>Los esperamos pronto</p>
+
+</div>
+
+<button
+class="imprimir"
+onclick="window.print()">
+
+🖨️ Imprimir
+
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+<script>
+
+
+const parametros =
+new URLSearchParams(window.location.search);
+
+let mesa =
+parametros.get("mesa");
+
+let ocupacionId =
+parametros.get("ocupacion") || parametros.get("ocupacion_id");
+
+let ahora = new Date();
+
+let numeroFactura =
+obtenerConsecutivoFactura();
+
+function obtenerProductosMesaActiva(){
+    let productosPorCliente = {};
+    obtenerTodosLosClientes(mesa).forEach(function(cliente){
+        let datosCliente = leerProductosCliente(mesa, cliente);
+        if(Object.keys(datosCliente).length > 0){
+            productosPorCliente["cliente_" + cliente] = datosCliente;
+        }
+    });
+    return productosPorCliente;
+}
+
+function normalizarProductosPorClienteVenta(venta){
+    if(!venta || typeof venta !== 'object'){
+        return {};
+    }
+    if(venta.productosPorCliente && typeof venta.productosPorCliente === 'object'){
+        return venta.productosPorCliente;
+    }
+    if(Array.isArray(venta.productos)){
+        let productosArray = {};
+        venta.productos.forEach(function(producto){
+            if(!producto || !producto.nombre) return;
+            productosArray[producto.nombre] = {
+                cantidad: producto.cantidad,
+                precio: producto.precio
+            };
+        });
+        return {"cliente_0": productosArray};
+    }
+    if(venta.productos && typeof venta.productos === 'object'){
+        let clienteKeys = Object.keys(venta.productos).filter(function(key){
+            return String(key).indexOf("cliente_") === 0;
+        });
+        if(clienteKeys.length > 0){
+            return venta.productos;
+        }
+        return {"cliente_0": venta.productos};
+    }
+    return {};
+}
+
+function pintarProductosPorCliente(productosPorCliente){
+    let salida = "";
+    let total = 0;
+    for(let clienteKey in productosPorCliente){
+        let productosCliente = productosPorCliente[clienteKey] || {};
+        let clienteNum = String(clienteKey).replace('cliente_','');
+        let subtotalCliente = 0;
+        let tieneConsumo = Object.keys(productosCliente).length > 0;
+        if(tieneConsumo){
+            salida += "<br><b>CLIENTE " + clienteNum + "</b><br>";
+        }
+        for(let nombre in productosCliente){
+            let item = productosCliente[nombre];
+            if(!item || typeof item !== "object" || Array.isArray(item)){
+                continue;
+            }
+            let cantidad = Number(item.cantidad);
+            let precio = Number(item.precio);
+            if(!Number.isFinite(cantidad) || !Number.isFinite(precio)){
+                continue;
+            }
+            if(cantidad <= 0 || precio < 0){
+                continue;
+            }
+            let subtotal = cantidad * precio;
+            subtotalCliente += subtotal;
+            total += subtotal;
+            salida += "<div class='item'><span>" + cantidad + " x " + nombre + "</span><span>$" + subtotal.toLocaleString() + "</span></div>";
+        }
+        if(tieneConsumo){
+            salida += "<br><b>Subtotal Cliente " + clienteNum + ": $" + subtotalCliente.toLocaleString() + "</b>";
+            salida += "<div class='linea'></div>";
+        }
+    }
+    return {
+        html: salida,
+        total: total
+    };
+}
+
+let productosMesaActiva = obtenerProductosMesaActiva();
+let tienePedidoActivo = Object.keys(productosMesaActiva).length > 0;
+
+// Intentar obtener una venta reciente solo cuando la mesa ya no tenga pedido abierto.
+let ultimaVenta = obtenerUltimaVenta();
+let historial = obtenerHistorialVentas();
+let ventaMesa = null;
+
+if(!tienePedidoActivo){
+    if(ultimaVenta && Number(ultimaVenta.mesa) === Number(mesa) && (ultimaVenta.tipo || '').toLowerCase().includes('mesa')){
+        ventaMesa = ultimaVenta;
+    } else {
+        // Buscar en el historial la última venta de esta mesa (cobro de mesa)
+        ventaMesa = historial.slice().reverse().find(function(f){
+            return Number(f.mesa) === Number(mesa) && (String(f.tipo || '').toLowerCase().includes('mesa'));
+        }) || null;
+    }
+}
+
+if(ventaMesa){
+    numeroFactura = Number(ventaMesa.factura) || numeroFactura;
+    if(ventaMesa.timestamp){
+        let fechaVenta = new Date(ventaMesa.timestamp);
+        if(!isNaN(fechaVenta.getTime())){
+            ahora = fechaVenta;
+        }
+    } else {
+        let fechaFallback = parseFechaHoraLocal(ventaMesa.fecha, ventaMesa.hora);
+        if(fechaFallback){
+            ahora = fechaFallback;
+        }
+    }
+}
+
+document.getElementById("datos").innerHTML =
+
+"<b>Factura Venta N°:</b> " +
+
+String(numeroFactura).padStart(6,"0") +
+
+"<br><br><b>Mesa:</b> " +
+
+mesa +
+
+"<br><b>Fecha:</b> " +
+
+ahora.toLocaleDateString() +
+
+"<br><b>Hora:</b> " +
+
+ahora.toLocaleTimeString();
+
+let html = "";
+
+let totalMesa = 0;
+
+if(tienePedidoActivo){
+    let render = pintarProductosPorCliente(productosMesaActiva);
+    html = render.html;
+    totalMesa = render.total;
+} else if(ventaMesa){
+    let render = pintarProductosPorCliente(normalizarProductosPorClienteVenta(ventaMesa));
+    html = render.html;
+    totalMesa = render.total;
+} else {
+    html = "";
+}
+
+document.getElementById("productos").innerHTML = html;
+
+document.getElementById("total").innerHTML = "TOTAL MESA: $" + totalMesa.toLocaleString();
+
+function combinarVentasPorCliente(ventas){
+    let combinado = {};
+    (ventas || []).forEach(function(venta){
+        let productosVenta = normalizarProductosPorClienteVenta(venta);
+        Object.keys(productosVenta).forEach(function(clienteKey){
+            if(!combinado[clienteKey]){
+                combinado[clienteKey] = {};
+            }
+            let productosCliente = productosVenta[clienteKey] || {};
+            Object.keys(productosCliente).forEach(function(nombre){
+                let item = productosCliente[nombre];
+                if(!item || typeof item !== "object" || Array.isArray(item)){
+                    return;
+                }
+                let cantidad = Number(item.cantidad);
+                let precio = Number(item.precio);
+                if(!Number.isFinite(cantidad) || !Number.isFinite(precio) || cantidad <= 0 || precio < 0){
+                    return;
+                }
+                if(!combinado[clienteKey][nombre]){
+                    combinado[clienteKey][nombre] = {
+                        cantidad: 0,
+                        precio: precio
+                    };
+                }
+                combinado[clienteKey][nombre].cantidad += cantidad;
+                combinado[clienteKey][nombre].precio = precio;
+            });
+        });
+    });
+    return combinado;
+}
+
+function renderizarReciboMesaHistorico(ventas){
+    if(!Array.isArray(ventas) || ventas.length === 0){
+        return;
+    }
+    let primera = ventas[0];
+    let ultima = ventas[ventas.length - 1];
+    let fechaVenta = ultima.timestamp ? new Date(ultima.timestamp) : new Date();
+    if(isNaN(fechaVenta.getTime())){
+        fechaVenta = new Date();
+    }
+    document.getElementById("datos").innerHTML =
+        "<b>Factura Venta N°:</b> " +
+        String(ultima.factura).padStart(6,"0") +
+        "<br><br><b>Mesa:</b> " +
+        mesa +
+        (primera.ocupacion_id ? "<br><b>Ocupación:</b> " + primera.ocupacion_id : "") +
+        "<br><b>Fecha:</b> " +
+        fechaVenta.toLocaleDateString() +
+        "<br><b>Hora:</b> " +
+        fechaVenta.toLocaleTimeString();
+
+    let render = pintarProductosPorCliente(combinarVentasPorCliente(ventas));
+    document.getElementById("productos").innerHTML = render.html;
+    document.getElementById("total").innerHTML = "TOTAL MESA: $" + render.total.toLocaleString();
+}
+
+async function actualizarReciboMesaDesdeSupabase(){
+    if(tienePedidoActivo || typeof obtenerVentasSupabase !== "function"){
+        return;
+    }
+    try{
+        let ventas = ocupacionId && typeof obtenerVentasPorOcupacionSupabase === "function"
+            ? await obtenerVentasPorOcupacionSupabase(ocupacionId)
+            : await obtenerVentasSupabase();
+        if(!ocupacionId){
+            guardarHistorialVentasEnCache(ventas);
+        }
+        if(!ocupacionId){
+            let ultima = ventas.slice().reverse().find(function(venta){
+                return Number(venta.mesa) === Number(mesa);
+            });
+            ventas = ultima && ultima.ocupacion_id
+                ? ventas.filter(function(venta){
+                    return venta.ocupacion_id === ultima.ocupacion_id;
+                })
+                : (ultima ? [ultima] : []);
+        }
+        renderizarReciboMesaHistorico(ventas);
+    }catch(error){
+        console.warn("No se pudo actualizar recibo de mesa desde Supabase.", error);
+    }
+}
+
+actualizarReciboMesaDesdeSupabase();
+
+</script>
+
+</body>
+
+</html>

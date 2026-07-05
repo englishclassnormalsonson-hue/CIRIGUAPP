@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CIRIGUAPP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado">
+
+        <div class="logo">
+            🪶
+        </div>
+
+        <h1>EL CIRIGUA</h1>
+
+        <p>Café • Bar</p>
+
+        <button
+            id="refrescarMesas"
+            class="refrescar-btn"
+            onclick="refrescarPantallaPrincipal(this)">
+            🔄 Refrescar
+        </button>
+
+    </div>
+
+    <h2>Seleccione una mesa</h2>
+
+    <div id="mesas">
+
+    </div>
+
+    <div class="leyenda">
+
+        <span>🟢 Libre</span>
+
+        <span>🟡 Consumiendo</span>
+
+        <span>🔴 Cobrar</span>
+
+    </div>
+    <br>
+
+<div class="menu-admin">
+
+<button class="ventas-btn"
+onclick="window.location.href='ventas.html'">
+📊 Dashboard
+</button>
+
+<button class="historial-btn"
+onclick="window.location.href='historial.html'">
+📜 Historial
+</button>
+
+<button class="productos-admin-btn"
+onclick="window.location.href='productos.html'">
+⚙️ Productos
+</button>
+
+<button class="gastos-btn"
+onclick="window.location.href='gastos.html'">
+💸 Gastos
+</button>
+
+<button class="cierre-btn"
+onclick="window.location.href='cierre.html'">
+🔒 Cierre de Caja
+</button>
+
+<button class="historial-cierres-btn"
+onclick="window.location.href='historial-cierres.html'">
+📈 Historial Cierres
+</button>
+
+</div>
+
+<script src="utils.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script>
+
+const contenedorMesas =
+    document.getElementById("mesas");
+
+async function mostrarMesas(){
+
+    try{
+
+        const mesas =
+            await obtenerMesasSupabase();
+
+        contenedorMesas.innerHTML = "";
+
+        mesas.forEach(function(mesa){
+
+            let boton =
+                document.createElement("button");
+
+            let estadoMesa =
+                mesa.estado || "libre";
+
+            boton.classList.add(
+                estadoMesa
+            );
+
+            boton.innerHTML =
+                "Mesa " + mesa.numero;
+
+            boton.onclick = function(){
+
+                window.location.href =
+                    "clientes.html?mesa=" + mesa.numero;
+            };
+
+            contenedorMesas.appendChild(boton);
+        });
+
+        return true;
+
+    }catch(error){
+
+        console.error(
+            "Error leyendo mesas desde Supabase:",
+            error
+        );
+
+        return false;
+    }
+}
+
+async function refrescarPantallaPrincipal(boton){
+    if(!boton || boton.disabled){
+        return;
+    }
+
+    const textoOriginal = boton.innerHTML;
+    boton.disabled = true;
+    boton.innerHTML = "Actualizando...";
+
+    try{
+        const actualizado = await mostrarMesas();
+        if(!actualizado){
+            alert("No se pudo actualizar la pantalla principal. Intente de nuevo.");
+        }
+    }catch(error){
+        alert("No se pudo actualizar la pantalla principal. Intente de nuevo.");
+    }finally{
+        boton.innerHTML = textoOriginal;
+        boton.disabled = false;
+    }
+}
+
+mostrarMesas();
+
+if(supabaseClient && typeof supabaseClient.channel === "function"){
+    supabaseClient
+        .channel("cirigua-mesas")
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "mesas"
+        }, function(){
+            mostrarMesas();
+        })
+        .subscribe();
+}
+
+</script>
+</body>
+
+</html>

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial Diario</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado encabezado-dashboard">
+        <div>
+            <h1>📊 Historial Diario</h1>
+            <p>Resumen ejecutivo de los cierres de caja por día</p>
+        </div>
+        <button class="volver boton-principal" onclick="window.location.href='ventas.html'">⬅ Volver al Dashboard</button>
+    </div>
+
+    <div class="panel-filtros">
+        <div class="filtro-input">
+            <label for="filtroFecha">Filtrar por fecha</label>
+            <input type="date" id="filtroFecha" />
+        </div>
+        <div class="filtro-info">
+            <p>Busca un día para ver la foto completa de ventas, gastos y utilidad.</p>
+        </div>
+    </div>
+
+    <div id="listaCierres" class="lista-cierres"></div>
+
+    <div id="detalleCierre" class="detalle-cierre"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    function formatoMoneda(valor) {
+        return '$' + Number(valor).toLocaleString();
+    }
+
+    function filtrarCierres(cierres, cierreHoy) {
+        if (!cierreHoy) return cierres;
+        return cierres.filter(function(cierre) {
+            return cierreCoincideConFecha(cierre, cierreHoy);
+        });
+    }
+
+    async function cargarHistorialDiario(){
+        let cierreHoy = document.getElementById('filtroFecha').value;
+        let cierres = safeParse(localStorage.getItem('cierresCaja'), []) || [];
+        if(!Array.isArray(cierres)){
+            cierres = [];
+        }
+        if(typeof obtenerCierresSupabase === 'function'){
+            try{
+                cierres = await obtenerCierresSupabase();
+                setStorageItem('cierresCaja', JSON.stringify(cierres));
+            }catch(error){
+                console.warn('No se pudieron leer cierres desde Supabase; usando cache local.', error);
+            }
+        }
+        let contenedor = document.getElementById('listaCierres');
+        let detalle = document.getElementById('detalleCierre');
+
+        let filtrado = filtrarCierres(cierres.slice().reverse(), cierreHoy);
+
+        if(filtrado.length === 0){
+            contenedor.innerHTML = '<div class="tarjeta-vacia"><h2>No hay cierres registrados</h2><p>Realiza un cierre de caja para ver el historial diario aquí.</p></div>';
+            detalle.style.display = 'none';
+            detalle.innerHTML = '';
+            return;
+        }
+
+        contenedor.innerHTML = '';
+        filtrado.forEach(function(cierre, indice){
+            let tarjeta = document.createElement('div');
+            tarjeta.classList.add('tarjeta-cierre');
+            tarjeta.innerHTML =
+                '<div class="tarjeta-cierre-header">' +
+                '<div class="tarjeta-cierre-titulo">' +
+                '<strong>' + cierre.fecha + '</strong>' +
+                '<span>' + cierre.hora + '</span>' +
+                '</div>' +
+                '<button class="boton-secundario" onclick="mostrarDetalle(' + indice + ')">Ver detalle</button>' +
+                '</div>' +
+                '<div class="tarjeta-cierre-grid">' +
+                '<div><span>Ventas</span><strong>' + formatoMoneda(cierre.ventas) + '</strong></div>' +
+                '<div><span>Gastos</span><strong>' + formatoMoneda(cierre.gastos) + '</strong></div>' +
+                '<div><span>Utilidad</span><strong>' + formatoMoneda(cierre.utilidad) + '</strong></div>' +
+                '<div><span>Facturas</span><strong>' + Number(cierre.facturas) + '</strong></div>' +
+                '<div><span>Clientes</span><strong>' + Number(cierre.clientes) + '</strong></div>' +
+                '<div><span>Producto Top</span><strong>' + (cierre.productoTop || '-') + '</strong></div>' +
+                '</div>';
+            contenedor.appendChild(tarjeta);
+        });
+
+        detalle.style.display = 'none';
+        detalle.innerHTML = '';
+    }
+
+    function mostrarDetalle(indice){
+        let cierreHoy = document.getElementById('filtroFecha').value;
+        let cierres = safeParse(localStorage.getItem('cierresCaja'), []) || [];
+        if(!Array.isArray(cierres)){
+            cierres = [];
+        }
+        let filtrado = filtrarCierres(cierres.slice().reverse(), cierreHoy);
+        let cierre = filtrado[indice];
+        if(!cierre){
+            return;
+        }
+        let detalle = document.getElementById('detalleCierre');
+        detalle.style.display = 'block';
+        let gastosHtml = '';
+        if(Array.isArray(cierre.gastosDetalle) && cierre.gastosDetalle.length > 0){
+            gastosHtml = '<div><h3>Gastos</h3><ul>' + cierre.gastosDetalle.map(function(g){
+                return '<li>' + (g.concepto || '-') + ' — $' + Number(g.valor || 0).toLocaleString() + '</li>';
+            }).join('') + '</ul></div>';
+        }
+
+        detalle.innerHTML =
+            '<div class="detalle-card">' +
+            '<div class="detalle-card-header">' +
+            '<div><h2>Detalle del cierre</h2><span>' + cierre.fecha + ' • ' + cierre.hora + '</span></div>' +
+            '</div>' +
+            '<div class="detalle-card-grid">' +
+            '<div><span>Ventas</span><strong>' + formatoMoneda(cierre.ventas) + '</strong></div>' +
+            '<div><span>Gastos</span><strong>' + formatoMoneda(cierre.gastos) + '</strong></div>' +
+            '<div><span>Utilidad</span><strong>' + formatoMoneda(cierre.utilidad) + '</strong></div>' +
+            '<div><span>Facturas</span><strong>' + Number(cierre.facturas) + '</strong></div>' +
+            '<div><span>Clientes</span><strong>' + Number(cierre.clientes) + '</strong></div>' +
+            '<div><span>Producto Top</span><strong>' + (cierre.productoTop || '-') + '</strong></div>' +
+            '<div><span>Promedio por factura</span><strong>' + formatoMoneda(Math.round(Number(cierre.promedio))) + '</strong></div>' +
+            '</div>' +
+            '<div style="margin-top:16px">' + gastosHtml + '</div>' +
+            '</div>';
+    }
+
+    document.getElementById('filtroFecha').addEventListener('change', cargarHistorialDiario);
+    cargarHistorialDiario();
+    </script>
+
+</body>
+
+</html>

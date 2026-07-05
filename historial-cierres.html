@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Cierres</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado encabezado-dashboard">
+        <div>
+            <h1>📈 Historial de Cierres</h1>
+            <p>Consulta los cierres de caja realizados con su desglose y detalle de gastos.</p>
+        </div>
+        <button class="volver boton-principal" onclick="window.location.href='index.html'">⬅ Volver</button>
+    </div>
+
+    <div class="historial-filtro-panel">
+        <div class="filtro-input">
+            <label for="filtroFecha">Filtrar por fecha</label>
+            <input type="date" id="filtroFecha" />
+        </div>
+    </div>
+
+    <div id="listaCierres" class="lista-cierres"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase.js"></script>
+    <script src="utils.js"></script>
+    <script>
+    function formatoMoneda(valor) {
+        return '$' + Number(valor).toLocaleString();
+    }
+
+    function detalleGastosHtml(cierre) {
+        if (!Array.isArray(cierre.gastosDetalle) || cierre.gastosDetalle.length === 0) {
+            return '<p class="historial-cierre-empty">No hay detalles de gastos registrados.</p>';
+        }
+
+        return '<div class="historial-cierre-list">' + cierre.gastosDetalle.map(function (gasto) {
+            return '<div class="historial-cierre-list-item"><span>' + (gasto.concepto || 'Concepto desconocido') + '</span><strong>$' + Number(gasto.valor || 0).toLocaleString() + '</strong></div>';
+        }).join('') + '</div>';
+    }
+
+    function construirTarjeta(cierre) {
+        return `
+            <article class="tarjeta-cierre">
+                <div class="tarjeta-cierre-header">
+                    <div>
+                        <strong>${cierre.fecha}</strong>
+                        <span>${cierre.hora}</span>
+                    </div>
+                    <span class="historial-cierre-badge">Facturas: ${Number(cierre.facturas)}</span>
+                </div>
+                <div class="tarjeta-cierre-grid">
+                    <div><span>Ventas</span><strong>${formatoMoneda(cierre.ventas)}</strong></div>
+                    <div><span>Gastos</span><strong>${formatoMoneda(cierre.gastos)}</strong></div>
+                    <div><span>Utilidad</span><strong>${formatoMoneda(cierre.utilidad)}</strong></div>
+                    <div><span>Clientes</span><strong>${Number(cierre.clientes)}</strong></div>
+                    <div><span>Producto top</span><strong>${cierre.productoTop || '-'}</strong></div>
+                    <div><span>Promedio</span><strong>${formatoMoneda(Math.round(Number(cierre.promedio) || 0))}</strong></div>
+                </div>
+                <details class="historial-cierre-details">
+                    <summary>Ver detalle completo</summary>
+                    <div class="historial-cierre-detail-body">
+                        <div class="historial-cierre-detail-block">
+                            <p><strong>Fecha de cierre:</strong> ${cierre.fecha}</p>
+                            <p><strong>Hora de cierre:</strong> ${cierre.hora}</p>
+                            <p><strong>Timestamp:</strong> ${cierre.timestamp || 'N/A'}</p>
+                        </div>
+                        <div class="historial-cierre-detail-block">
+                            <h4>Detalle de gastos</h4>
+                            ${detalleGastosHtml(cierre)}
+                        </div>
+                    </div>
+                </details>
+            </article>`;
+    }
+
+    async function cargarHistorialCierres() {
+        let fechaFiltro = document.getElementById('filtroFecha').value;
+        let cierres = safeParse(localStorage.getItem('cierresCaja'), []) || [];
+        if (!Array.isArray(cierres)) {
+            cierres = [];
+        }
+        if(typeof obtenerCierresSupabase === 'function'){
+            try{
+                cierres = await obtenerCierresSupabase();
+                setStorageItem('cierresCaja', JSON.stringify(cierres));
+            }catch(error){
+                console.warn('No se pudieron leer cierres desde Supabase; usando cache local.', error);
+            }
+        }
+        let contenedor = document.getElementById('listaCierres');
+
+        let filtrado = cierres.slice().reverse();
+        if (fechaFiltro) {
+            filtrado = filtrado.filter(function (cierre) {
+                return cierreCoincideConFecha(cierre, fechaFiltro);
+            });
+        }
+
+        if (filtrado.length === 0) {
+            contenedor.innerHTML = '<div class="tarjeta-vacia"><h2>No hay cierres registrados</h2><p>Realice un cierre de caja para ver el historial aquí.</p></div>';
+            return;
+        }
+
+        contenedor.innerHTML = filtrado.map(construirTarjeta).join('');
+    }
+
+    document.getElementById('filtroFecha').addEventListener('change', cargarHistorialCierres);
+    cargarHistorialCierres();
+    </script>
+
+</body>
+
+</html>

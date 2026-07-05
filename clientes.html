@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes Mesa</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado">
+
+        <h1 id="tituloMesa">MESA</h1>
+
+        <p>Clientes Activos</p>
+
+    </div>
+
+    <div class="clientes-container" id="listaClientes">
+
+    </div>
+
+    <div class="clientes-container acciones-mesa">
+
+        <button class="nuevo-cliente" onclick="crearCliente()">
+            ➕ Nuevo Cliente
+        </button>
+
+        <button class="marcar-cobro" onclick="marcarMesaParaCobro()">
+            🔴 Marcar Mesa para Cobro
+        </button>
+
+        <button class="cobrar-mesa" onclick="cobrarMesaCompleta(this)">
+            💰 Cobrar Mesa Completa
+        </button>
+
+        <button class="mantener-ocupada" onclick="mantenerMesaOcupada()">
+            🔵 Mantener Ocupada
+        </button>
+
+<button class="liberar-mesa" onclick="liberarMesa()">
+         🟢 Liberar Mesa
+</button>
+
+    </div>
+
+    <div class="total-mesa">
+
+    TOTAL MESA
+
+    <h2 id="totalMesa">$0</h2>
+
+</div>
+
+    <div class="acciones-inferiores">
+
+    <button class="recibo-mesa"
+    onclick="verReciboMesa()">
+
+        🧾 Recibo Mesa
+
+    </button>
+
+    <button class="volver"
+    onclick="window.location.href='index.html'">
+
+        ⬅ Volver
+
+    </button>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+
+<script>
+
+const parametros =
+    new URLSearchParams(window.location.search);
+
+const mesaActual =
+    parametros.get("mesa") || 1;
+
+const clientesFijos = [1, 2, 3];
+
+document.getElementById("tituloMesa").innerHTML =
+    "MESA " + mesaActual;
+
+// Mesas utilities (claveCliente, leerProductosCliente, obtenerClientesDinamicos, etc.)
+// fueron centralizadas en `utils.js` to avoid duplication.
+
+function mostrarClientes(){
+
+    const contenedor =
+        document.getElementById("listaClientes");
+
+    contenedor.innerHTML = "";
+
+    let totalMesa = 0;
+
+    obtenerTodosLosClientes().forEach(function(numero){
+
+        let totalCliente =
+            calcularTotalCliente(numero);
+
+        totalMesa += totalCliente;
+
+        let fila =
+            document.createElement("div");
+
+        fila.classList.add("cliente-fila");
+
+        fila.innerHTML = `
+            <button class="cliente-card"
+            onclick="window.location.href='pedido.html?mesa=${mesaActual}&cliente=${numero}'">
+
+                Cliente ${numero}
+
+                <span>$${totalCliente.toLocaleString()}</span>
+
+            </button>
+        `;
+
+        if(numero > 3){
+
+            let botonEliminar =
+                document.createElement("button");
+
+            botonEliminar.classList.add("eliminar-cliente");
+
+            botonEliminar.innerHTML = "❌";
+
+            botonEliminar.onclick = function(){
+                eliminarCliente(numero);
+            };
+
+            fila.appendChild(botonEliminar);
+        }
+
+        contenedor.appendChild(fila);
+    });
+
+    document.getElementById("totalMesa").innerHTML =
+        "$" + totalMesa.toLocaleString();
+
+    actualizarEstadoMesa(mesaActual, totalMesa);
+}
+
+async function crearCliente(){
+
+    let clientesDinamicos =
+        obtenerClientesDinamicos();
+
+    let todosLosClientes =
+        clientesFijos.concat(clientesDinamicos);
+
+    if(todosLosClientes.length >= maxClientesPorMesa()){
+        alert("La mesa alcanzó el límite de " + maxClientesPorMesa() + " clientes.");
+        return;
+    }
+
+    let nuevoNumero =
+        Math.max(...todosLosClientes) + 1;
+
+    try{
+
+        await crearClienteMesaSupabase(
+            mesaActual,
+            nuevoNumero
+        );
+
+        clientesDinamicos.push(nuevoNumero);
+
+        guardarClientesDinamicos(clientesDinamicos);
+
+        mostrarClientes();
+
+    }catch(error){
+
+        console.error(
+            "Error creando cliente en Supabase:",
+            error
+        );
+
+        alert("No se pudo crear el cliente.");
+    }
+}
+
+async function eliminarCliente(numero){
+
+    if(numero <= 3){
+        return;
+    }
+
+    let total =
+        calcularTotalCliente(numero);
+
+    if(total > 0){
+
+        alert(
+            "No puede eliminar un cliente con consumo pendiente."
+        );
+
+        return;
+    }
+
+    let confirmar =
+        confirm(
+            "¿Eliminar Cliente " +
+            numero +
+            "?"
+        );
+
+    if(!confirmar){
+        return;
+    }
+
+    try{
+
+        await borrarPedidoClienteSupabase(
+            mesaActual,
+            numero
+        );
+
+        let clientesDinamicos =
+            obtenerClientesDinamicos();
+
+        clientesDinamicos =
+            clientesDinamicos.filter(function(cliente){
+                return cliente !== numero;
+            });
+
+        guardarClientesDinamicos(clientesDinamicos);
+
+        removeStorageItem(
+            claveCliente(numero)
+        );
+
+        mostrarClientes();
+
+    }catch(error){
+
+        console.error(
+            "Error eliminando cliente de Supabase:",
+            error
+        );
+
+        alert("No se pudo eliminar el cliente.");
+    }
+}
+
+async function marcarMesaParaCobro(){
+
+    let totalMesa =
+        calcularTotalMesa();
+
+    if(totalMesa <= 0){
+
+        alert("La mesa no tiene consumo pendiente.");
+
+        return;
+    }
+
+    try{
+
+        await cambiarEstadoMesaSupabase(
+            mesaActual,
+            "cobro"
+        );
+
+        setStorageItem(
+            claveEstadoMesa(),
+            "cobro"
+        );
+
+        alert("Mesa marcada para cobro.");
+
+    }catch(error){
+
+        console.error(
+            "Error marcando mesa para cobro en Supabase:",
+            error
+        );
+
+        alert("No se pudo marcar la mesa para cobro.");
+    }
+}
+
+function cobrarMesaCompleta(boton){
+    return ejecutarAccionCritica(boton, async function(){
+
+    const totalMesa = calcularTotalMesa();
+
+    if(totalMesa <= 0){
+        alert("No hay nada para cobrar en esta mesa.");
+        return false;
+    }
+
+    if(!confirm(
+        "¿Confirma el cobro de la Mesa " + mesaActual +
+        " por $" + totalMesa.toLocaleString() + "?"
+    )){
+        return false;
+    }
+
+    let productosPorCliente = {};
+    obtenerTodosLosClientes().forEach(function(numero){
+        let productosCliente = leerProductosCliente(numero);
+        if(productosCliente && Object.keys(productosCliente).length > 0){
+            productosPorCliente["cliente_" + numero] = productosCliente;
+        }
+    });
+
+    let datosFactura = crearDatosFacturaVenta({
+        mesa: mesaActual,
+        cliente: 0,
+        tipo: "Cobro Mesa",
+        total: totalMesa,
+        productosPorCliente: productosPorCliente
+    });
+
+    let ventaRegistrada = null;
+    if(typeof registrarVentaConfirmada === 'function'){
+        try{
+            ventaRegistrada = await registrarVentaConfirmada(datosFactura);
+        }catch(error){
+            console.error("No se pudo registrar la venta de mesa en Supabase:", error);
+        }
+    }
+
+    if(!ventaRegistrada){
+        alert("No se pudo registrar la venta. El consumo de la mesa NO fue borrado. Intente de nuevo.");
+        return false;
+    }
+
+    try{
+
+        await borrarTodosClientesMesaSupabase(mesaActual);
+
+        await cambiarEstadoMesaSupabase(
+            mesaActual,
+            "libre"
+        );
+
+    }catch(error){
+
+        console.error(
+            "Error limpiando la mesa en Supabase:",
+            error
+        );
+
+        alert("La venta fue registrada, pero no se pudo limpiar la mesa en Supabase.");
+        return false;
+    }
+
+    // Borrar completamente todos los clientes de la mesa
+    obtenerTodosLosClientes().forEach(function(numero){
+        removeStorageItem(claveCliente(numero));
+        removeStorageItem("cliente_" + numero);
+    });
+
+    // Reiniciar estructura de clientes
+    removeStorageItem(claveClientesDinamicos());
+    removeStorageItem(claveClientesInicializados());
+
+    // Limpiar estado de la mesa
+    setStorageItem(claveTotalMesa(), 0);
+    setStorageItem(claveEstadoMesa(), "libre");
+
+    mostrarClientes();
+
+    alert("Mesa cobrada correctamente.");
+
+    window.location.replace("index.html");
+    });
+}
+
+async function mantenerMesaOcupada(){
+
+    try{
+
+        await cambiarEstadoMesaSupabase(
+            mesaActual,
+            "pagada"
+        );
+
+        setStorageItem(
+            claveEstadoMesa(),
+            "pagada"
+        );
+
+        alert(
+            "Mesa marcada como pagada y ocupada."
+        );
+
+        window.location.href =
+            "index.html";
+
+    }catch(error){
+
+        console.error(
+            "Error manteniendo la mesa ocupada en Supabase:",
+            error
+        );
+
+        alert("No se pudo mantener la mesa ocupada.");
+    }
+}
+
+async function liberarMesa(){
+
+    try{
+
+        await borrarTodosClientesMesaSupabase(mesaActual);
+
+        await cambiarEstadoMesaSupabase(
+            mesaActual,
+            "libre"
+        );
+
+    }catch(error){
+
+        console.error(
+            "Error liberando la mesa en Supabase:",
+            error
+        );
+
+        alert("No se pudo liberar la mesa.");
+
+        return;
+    }
+
+    // Eliminar pedidos de todos los clientes y marcar mesa libre
+    obtenerTodosLosClientes().forEach(function(numero){
+        removeStorageItem(claveCliente(numero));
+        removeStorageItem("cliente_" + numero);
+    });
+
+    // Reiniciar estructura de clientes dinámicos para evitar conservar estados
+    removeStorageItem(claveClientesDinamicos());
+    removeStorageItem(claveClientesInicializados());
+
+    setStorageItem(claveEstadoMesa(), "libre");
+    setStorageItem(claveTotalMesa(), 0);
+
+    alert(
+        "Mesa liberada correctamente."
+    );
+
+    window.location.href =
+        "index.html";
+}
+
+function verReciboMesa(){
+
+    window.open(
+
+        "reciboMesa.html?mesa=" + mesaActual,
+
+        "_blank"
+
+    );
+
+}
+async function iniciarClientes(){
+
+    try{
+
+        let clientesSupabase =
+            await obtenerClientesMesaSupabase(mesaActual);
+
+        let clientesDinamicos = [];
+
+        clientesSupabase.forEach(function(cliente){
+
+            if(Number(cliente.numero_cliente) > 3){
+                clientesDinamicos.push(
+                    Number(cliente.numero_cliente)
+                );
+            }
+
+            if(
+                cliente.productos &&
+                Object.keys(cliente.productos).length > 0
+            ){
+                setStorageItem(
+                    claveCliente(cliente.numero_cliente),
+                    JSON.stringify(cliente.productos)
+                );
+            }else{
+                removeStorageItem(
+                    claveCliente(cliente.numero_cliente)
+                );
+            }
+        });
+
+        guardarClientesDinamicos(
+            mesaActual,
+            clientesDinamicos
+        );
+
+        mostrarClientes();
+
+    }catch(error){
+
+        console.error(
+            "Error leyendo clientes desde Supabase:",
+            error
+        );
+
+        mostrarClientes();
+    }
+}
+
+iniciarClientes();
+
+if(supabaseClient && typeof supabaseClient.channel === "function"){
+    supabaseClient
+        .channel("cirigua-clientes-mesa-" + mesaActual)
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "clientes_mesa",
+            filter: "mesa_numero=eq." + Number(mesaActual)
+        }, function(){
+            iniciarClientes();
+        })
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "mesas",
+            filter: "numero=eq." + Number(mesaActual)
+        }, function(){
+            iniciarClientes();
+        })
+        .subscribe();
+}
+
+</script>
+
+</body>
+
+</html>

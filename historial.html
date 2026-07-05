@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Historial de Ventas</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="encabezado">
+
+        <h1>📋 Historial</h1>
+
+        <p>Registro de Ventas</p>
+
+    </div>
+
+    <div id="historialVentas">
+
+        <p>No hay registros aún.</p>
+
+    </div>
+
+    <button class="volver"
+    onclick="window.location.href='index.html'">
+
+        ⬅ Volver
+
+    </button>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script>
+<script src="utils.js"></script>
+<script src="ventas.js"></script>
+<script>
+
+const contenedor =
+    document.getElementById("historialVentas");
+
+async function cargarHistorialVentas(){
+let historial = obtenerHistorialVentas();
+
+if(typeof obtenerVentasSupabase === "function"){
+    try{
+        historial = await obtenerVentasSupabase();
+        guardarHistorialVentasEnCache(historial);
+    }catch(error){
+        console.warn("No se pudo leer historial desde Supabase; usando cache local.", error);
+    }
+}
+
+if(historial.length > 0){
+
+    contenedor.innerHTML = "";
+
+    historial.slice().reverse().forEach(function(venta){
+
+        let item =
+            document.createElement("div");
+
+        item.classList.add("item-pedido");
+
+        item.innerHTML = `
+            <div class="info-producto">
+
+                <h3>🧾 Factura #${String(venta.factura).padStart(6,'0')}</h3>
+
+                <p><strong>${venta.tipo}</strong></p>
+
+                <p>Fecha: ${venta.fecha}</p>
+
+                <p>Hora: ${venta.hora}</p>
+
+                <p>Mesa: ${venta.mesa}</p>
+
+                ${venta.cliente ? `<p>Cliente: ${venta.cliente}</p>` : ``}
+
+                <p><strong>Total: $${venta.total.toLocaleString()}</strong></p>
+
+            </div>
+        `;
+
+        contenedor.appendChild(item);
+
+    });
+}
+}
+
+cargarHistorialVentas();
+
+</script>
+
+</body>
+
+</html>
