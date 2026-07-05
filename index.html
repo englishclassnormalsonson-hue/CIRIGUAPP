@@ -39,6 +39,17 @@
 
     <h2>Seleccione una mesa</h2>
 
+    <div class="controles-plano">
+
+        <button
+            id="girarMapaMesas"
+            class="girar-mapa-btn"
+            onclick="girarMapaMesas()">
+            🔄 Girar mapa
+        </button>
+
+    </div>
+
     <div class="plano-scroll" aria-label="Plano de mesas de El Cirigua">
 
         <div id="mesas">
@@ -111,52 +122,173 @@ onclick="window.location.href='historial-mensual.html'">
 const contenedorMesas =
     document.getElementById("mesas");
 
+const STORAGE_ORIENTACION_MAPA =
+    "ciriguapp_orientacion_mapa_mesas";
+
+const COLUMNAS_BASE_MAPA =
+    12;
+
+const FILAS_BASE_MAPA =
+    10;
+
+let orientacionMapaMesas =
+    Number(localStorage.getItem(STORAGE_ORIENTACION_MAPA) || 0);
+
+if(![0, 90, 180, 270].includes(orientacionMapaMesas)){
+    orientacionMapaMesas = 0;
+}
+
 const DISTRIBUCION_MESAS_CIRIGUA = [
-    { tipo: "mesa", numero: 1, columna: 1, fila: 1 },
-    { tipo: "mesa", numero: 2, columna: 1, fila: 2 },
-    { tipo: "mesa", numero: 3, columna: 1, fila: 3 },
-    { tipo: "mesa", numero: 4, columna: 1, fila: 4 },
-    { tipo: "mesa", numero: 5, columna: 1, fila: 5 },
-    { tipo: "mesa", numero: 6, columna: 1, fila: 6 },
-    { tipo: "mesa", numero: 7, columna: 1, fila: 7 },
+    { tipo: "referencia", texto: "SOTRANSODA", clase: "sotransoda", columna: 1, fila: 1 },
+    { tipo: "referencia", texto: "ENTRADA 2", clase: "entrada secundaria", columna: 3, fila: 1 },
+    { tipo: "referencia", texto: "ENTRADA 1", clase: "entrada", columna: 5, fila: 1, ancho: 2 },
 
-    { tipo: "mesa", numero: 8, columna: 3, fila: 1 },
-    { tipo: "mesa", numero: 9, columna: 3, fila: 2 },
-    { tipo: "mesa", numero: 10, columna: 3, fila: 3 },
-    { tipo: "mesa", numero: 11, columna: 3, fila: 4 },
-    { tipo: "mesa", numero: 12, columna: 3, fila: 5 },
-    { tipo: "mesa", numero: 13, columna: 3, fila: 6 },
-    { tipo: "mesa", numero: 14, columna: 3, fila: 7 },
-    { tipo: "mesa", numero: 15, columna: 3, fila: 8 },
+    { tipo: "mesa", numero: 1, columna: 1, fila: 2 },
+    { tipo: "mesa", numero: 2, columna: 1, fila: 3 },
+    { tipo: "mesa", numero: 3, columna: 1, fila: 4 },
+    { tipo: "mesa", numero: 4, columna: 1, fila: 5 },
+    { tipo: "mesa", numero: 5, columna: 1, fila: 6 },
+    { tipo: "mesa", numero: 6, columna: 1, fila: 7 },
+    { tipo: "mesa", numero: 7, columna: 1, fila: 8 },
 
-    { tipo: "referencia", texto: "ENTRADA", clase: "entrada", columna: "5 / span 2", fila: 1 },
+    { tipo: "mesa", numero: 8, columna: 3, fila: 2 },
+    { tipo: "mesa", numero: 9, columna: 3, fila: 3 },
+    { tipo: "mesa", numero: 10, columna: 3, fila: 4 },
+    { tipo: "mesa", numero: 11, columna: 3, fila: 5 },
+    { tipo: "mesa", numero: 12, columna: 3, fila: 6 },
+    { tipo: "mesa", numero: 13, columna: 3, fila: 7 },
+    { tipo: "mesa", numero: 14, columna: 3, fila: 8 },
+    { tipo: "mesa", numero: 15, columna: 3, fila: 9 },
+
     { tipo: "mesa", numero: 16, columna: 5, fila: 2 },
-    { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 5, fila: 3 },
-    { tipo: "referencia", texto: "NEVERA", clase: "nevera", columna: 5, fila: 4 },
+    { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 5, fila: 3, ancho: 2 },
+    { tipo: "referencia", texto: "NEVERA", clase: "nevera", columna: 5, fila: 4, ancho: 2 },
     { tipo: "mesa", numero: 17, columna: 5, fila: 5 },
 
-    { tipo: "referencia", texto: "PASILLO", clase: "pasillo", columna: "6 / span 2", fila: 5 },
-    { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 5, fila: 6 },
-    { tipo: "mesa", numero: 18, columna: 6, fila: 6 },
-    { tipo: "mesa", numero: 19, columna: 6, fila: 7 },
-    { tipo: "mesa", numero: 20, columna: 6, fila: 8 },
+    { tipo: "referencia", texto: "PASILLITO", clase: "pasillo", columna: 6, fila: 6, ancho: 2 },
+    { tipo: "mesa", numero: 18, columna: 6, fila: 7 },
+    { tipo: "referencia", texto: "PILASTRA", clase: "pilastra", columna: 6, fila: 8 },
+    { tipo: "mesa", numero: 19, columna: 6, fila: 9 },
+    { tipo: "mesa", numero: 20, columna: 6, fila: 10 },
 
-    { tipo: "mesa", numero: 21, columna: 8, fila: 6 },
-    { tipo: "mesa", numero: 22, columna: 8, fila: 7 },
-    { tipo: "mesa", numero: 23, columna: 8, fila: 8 },
-    { tipo: "mesa", numero: 24, columna: 8, fila: 9 },
+    { tipo: "mesa", numero: 21, columna: 8, fila: 7 },
+    { tipo: "mesa", numero: 22, columna: 8, fila: 8 },
+    { tipo: "mesa", numero: 23, columna: 8, fila: 9 },
+    { tipo: "mesa", numero: 24, columna: 8, fila: 10 },
 
-    { tipo: "referencia", texto: "", clase: "barra", columna: "9 / span 4", fila: "3 / span 2" },
-    { tipo: "mesa", numero: 25, columna: 10, fila: 6 },
-    { tipo: "mesa", numero: 26, columna: 10, fila: 7 },
-    { tipo: "mesa", numero: 27, columna: 10, fila: 8 },
+    { tipo: "referencia", texto: "BARRA DONDE SE ATIENDE", clase: "barra", columna: 7, fila: 1, ancho: 6, alto: 5 },
+    { tipo: "mesa", numero: 25, columna: 10, fila: 7 },
+    { tipo: "mesa", numero: 26, columna: 10, fila: 8 },
+    { tipo: "mesa", numero: 27, columna: 10, fila: 9 },
 
-    { tipo: "mesa", numero: 28, columna: 12, fila: 6 },
-    { tipo: "mesa", numero: 29, columna: 12, fila: 7 },
-    { tipo: "mesa", numero: 30, columna: 12, fila: 8 },
-    { tipo: "referencia", texto: "BAÑO MUJERES", clase: "bano mujeres", columna: "9 / span 2", fila: 9 },
-    { tipo: "referencia", texto: "BAÑO HOMBRES", clase: "bano hombres", columna: "11 / span 2", fila: 9 }
+    { tipo: "mesa", numero: 28, columna: 12, fila: 7 },
+    { tipo: "mesa", numero: 29, columna: 12, fila: 8 },
+    { tipo: "mesa", numero: 30, columna: 12, fila: 9 },
+    { tipo: "referencia", texto: "BAÑO MUJERES", clase: "bano mujeres", columna: 9, fila: 10, ancho: 2 },
+    { tipo: "referencia", texto: "BAÑO HOMBRES", clase: "bano hombres", columna: 11, fila: 10, ancho: 2 }
 ];
+
+function obtenerDimensionesMapa(){
+    if(orientacionMapaMesas === 90 || orientacionMapaMesas === 270){
+        return {
+            columnas: FILAS_BASE_MAPA,
+            filas: COLUMNAS_BASE_MAPA
+        };
+    }
+
+    return {
+        columnas: COLUMNAS_BASE_MAPA,
+        filas: FILAS_BASE_MAPA
+    };
+}
+
+function rotarUbicacion(item){
+    const columna = Number(item.columna);
+    const fila = Number(item.fila);
+    const ancho = Number(item.ancho || 1);
+    const alto = Number(item.alto || 1);
+
+    if(orientacionMapaMesas === 90){
+        return {
+            columna: FILAS_BASE_MAPA - fila - alto + 2,
+            fila: columna,
+            ancho: alto,
+            alto: ancho
+        };
+    }
+
+    if(orientacionMapaMesas === 180){
+        return {
+            columna: COLUMNAS_BASE_MAPA - columna - ancho + 2,
+            fila: FILAS_BASE_MAPA - fila - alto + 2,
+            ancho: ancho,
+            alto: alto
+        };
+    }
+
+    if(orientacionMapaMesas === 270){
+        return {
+            columna: fila,
+            fila: COLUMNAS_BASE_MAPA - columna - ancho + 2,
+            ancho: alto,
+            alto: ancho
+        };
+    }
+
+    return {
+        columna: columna,
+        fila: fila,
+        ancho: ancho,
+        alto: alto
+    };
+}
+
+function aplicarUbicacionPlano(elemento, item){
+    const ubicacion =
+        rotarUbicacion(item);
+
+    elemento.style.gridColumn =
+        ubicacion.columna + " / span " + ubicacion.ancho;
+
+    elemento.style.gridRow =
+        ubicacion.fila + " / span " + ubicacion.alto;
+}
+
+function aplicarOrientacionMapa(){
+    const dimensiones =
+        obtenerDimensionesMapa();
+
+    contenedorMesas.style.setProperty(
+        "--columnas-plano",
+        dimensiones.columnas
+    );
+
+    contenedorMesas.style.setProperty(
+        "--filas-plano",
+        dimensiones.filas
+    );
+
+    contenedorMesas.dataset.orientacion =
+        String(orientacionMapaMesas);
+}
+
+function girarMapaMesas(){
+    const orientaciones =
+        [0, 90, 180, 270];
+
+    const indiceActual =
+        orientaciones.indexOf(orientacionMapaMesas);
+
+    orientacionMapaMesas =
+        orientaciones[(indiceActual + 1) % orientaciones.length];
+
+    localStorage.setItem(
+        STORAGE_ORIENTACION_MAPA,
+        String(orientacionMapaMesas)
+    );
+
+    mostrarMesas();
+}
 
 function crearReferenciaPlano(item){
     let referencia =
@@ -168,11 +300,10 @@ function crearReferenciaPlano(item){
     referencia.textContent =
         item.texto;
 
-    referencia.style.gridColumn =
-        item.columna;
-
-    referencia.style.gridRow =
-        item.fila;
+    aplicarUbicacionPlano(
+        referencia,
+        item
+    );
 
     return referencia;
 }
@@ -216,6 +347,8 @@ async function mostrarMesas(){
         const mesas =
             await obtenerMesasSupabase();
 
+        aplicarOrientacionMapa();
+
         contenedorMesas.innerHTML = "";
 
         const mesasPorNumero = {};
@@ -241,11 +374,10 @@ async function mostrarMesas(){
             let boton =
                 crearBotonMesa(mesa);
 
-            boton.style.gridColumn =
-                item.columna;
-
-            boton.style.gridRow =
-                item.fila;
+            aplicarUbicacionPlano(
+                boton,
+                item
+            );
 
             contenedorMesas.appendChild(boton);
         });

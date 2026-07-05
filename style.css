@@ -137,13 +137,33 @@ h2{
     padding:12px 8px 20px;
 }
 
+.controles-plano{
+    display:flex;
+    justify-content:center;
+    margin:-8px auto 18px;
+}
+
+.girar-mapa-btn{
+    width:auto;
+    min-width:220px;
+    height:58px;
+    padding:0 28px;
+    border-radius:18px;
+    background:#7c3aed;
+    color:white;
+    font-size:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.35);
+}
+
 #mesas{
+    --mesa-ancho:86px;
+    --mesa-alto:76px;
     display:grid;
-    grid-template-columns:repeat(12, minmax(74px, 1fr));
-    grid-template-rows:repeat(9, minmax(76px, auto));
+    grid-template-columns:repeat(var(--columnas-plano, 12), var(--mesa-ancho));
+    grid-template-rows:repeat(var(--filas-plano, 10), var(--mesa-alto));
     gap:14px;
-    min-width:980px;
-    max-width:1320px;
+    width:max-content;
+    min-width:max-content;
     margin:0 auto;
     padding:20px;
     border:2px solid rgba(255,255,255,0.14);
@@ -177,9 +197,12 @@ button:hover{
 }
 
 .mesa-plano{
-    width:100%;
-    min-height:78px;
-    height:100%;
+    width:var(--mesa-ancho);
+    min-width:var(--mesa-ancho);
+    max-width:var(--mesa-ancho);
+    height:var(--mesa-alto);
+    min-height:var(--mesa-alto);
+    max-height:var(--mesa-alto);
     border-radius:18px;
     font-size:20px;
     line-height:1.1;
@@ -191,7 +214,7 @@ button:hover{
     display:flex;
     align-items:center;
     justify-content:center;
-    min-height:60px;
+    min-height:100%;
     border-radius:16px;
     padding:10px;
     text-align:center;
@@ -209,6 +232,12 @@ button:hover{
     color:#bbf7d0;
 }
 
+.plano-referencia.sotransoda,
+.plano-referencia.secundaria{
+    background:rgba(234,179,8,0.20);
+    color:#fef3c7;
+}
+
 .plano-referencia.entrada::before{
     content:"↓";
     margin-right:8px;
@@ -216,9 +245,12 @@ button:hover{
 }
 
 .plano-referencia.barra{
-    background:rgba(146,64,14,0.72);
-    color:#ffedd5;
+    background:
+        linear-gradient(90deg, rgba(250,204,21,0.50), rgba(161,98,7,0.82)),
+        rgba(146,64,14,0.72);
+    color:#1f1300;
     border-color:rgba(251,191,36,0.28);
+    font-size:22px;
 }
 
 .plano-referencia.barra:empty::before{
@@ -319,27 +351,34 @@ button:hover{
         font-size:19px;
     }
 
+    .controles-plano{
+        margin:-4px auto 14px;
+    }
+
+    .girar-mapa-btn{
+        width:100%;
+        max-width:300px;
+        min-width:0;
+        height:56px;
+        font-size:19px;
+    }
+
     .plano-scroll{
         margin:0 -8px;
         padding:8px 8px 18px;
     }
 
     #mesas{
-        min-width:900px;
-        grid-template-columns:repeat(12, minmax(66px, 1fr));
-        grid-template-rows:repeat(9, minmax(70px, auto));
         gap:10px;
         padding:14px;
     }
 
     .mesa-plano{
-        min-height:72px;
-        font-size:18px;
+        font-size:20px;
     }
 
     .plano-referencia{
         font-size:13px;
-        min-height:54px;
     }
 
 }
