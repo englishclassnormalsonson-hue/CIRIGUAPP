@@ -994,6 +994,7 @@ button:hover{
 /* High-contrast delete buttons (gastos, productos, clientes) */
 .eliminar-gasto,
 .eliminar-producto,
+.eliminar-definitivo-producto,
 .eliminar-cliente{
     background:#b91c1c; /* red-700 */
     color:white;
@@ -1007,6 +1008,7 @@ button:hover{
 
 .eliminar-gasto:hover,
 .eliminar-producto:hover,
+.eliminar-definitivo-producto:hover,
 .eliminar-cliente:hover{
     background:#7f1d1d; /* darker red */
     transform:translateY(-2px);
@@ -1016,6 +1018,7 @@ button:hover{
 @media (max-width:640px){
     .eliminar-gasto,
     .eliminar-producto,
+    .eliminar-definitivo-producto,
     .eliminar-cliente{
         padding:10px 12px;
         font-size:16px;
@@ -1151,7 +1154,7 @@ button:hover{
 
     display:grid;
 
-    grid-template-columns:2fr 1fr 1.4fr auto auto;
+    grid-template-columns:2fr 1fr 1.4fr auto auto auto;
 
     gap:12px;
 
@@ -1180,7 +1183,8 @@ button:hover{
 }
 
 .guardar-producto,
-.eliminar-producto{
+.eliminar-producto,
+.eliminar-definitivo-producto{
 
     height:58px;
 
@@ -1199,6 +1203,10 @@ button:hover{
 .eliminar-producto{
 
     background:#dc2626;
+}
+
+.eliminar-definitivo-producto{
+    background:#991b1b;
 }
 
 @media(max-width:900px){

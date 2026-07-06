@@ -129,6 +129,121 @@ async function cambiarEstadoProductoSupabase(id, activo){
     return data;
 }
 
+function normalizarNombreReferenciaProducto(nombre){
+    return String(nombre || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+
+function jsonContieneProductoCirigua(valor, nombreProducto){
+    const nombreBuscado =
+        normalizarNombreReferenciaProducto(nombreProducto);
+
+    if(!nombreBuscado || !valor){
+        return false;
+    }
+
+    if(Array.isArray(valor)){
+        return valor.some(function(item){
+            return jsonContieneProductoCirigua(item, nombreBuscado);
+        });
+    }
+
+    if(typeof valor !== "object"){
+        return false;
+    }
+
+    return Object.keys(valor).some(function(clave){
+        if(normalizarNombreReferenciaProducto(clave) === nombreBuscado){
+            return true;
+        }
+
+        return jsonContieneProductoCirigua(valor[clave], nombreBuscado);
+    });
+}
+
+async function productoTieneReferenciasSupabase(producto){
+    await asegurarSesionCirigua();
+
+    if(!producto || !producto.nombre){
+        throw new Error("Producto inválido");
+    }
+
+    const { data: ventas, error: errorVentas } =
+        await supabaseClient
+            .from("ventas")
+            .select("id,factura,productos,productos_por_cliente");
+
+    if(errorVentas){
+        throw errorVentas;
+    }
+
+    const usadoEnVentas =
+        (ventas || []).some(function(venta){
+            return jsonContieneProductoCirigua(venta.productos, producto.nombre) ||
+                jsonContieneProductoCirigua(venta.productos_por_cliente, producto.nombre);
+        });
+
+    if(usadoEnVentas){
+        return {
+            usado: true,
+            tipo: "ventas"
+        };
+    }
+
+    const { data: pedidos, error: errorPedidos } =
+        await supabaseClient
+            .from("clientes_mesa")
+            .select("id,productos");
+
+    if(errorPedidos){
+        throw errorPedidos;
+    }
+
+    const usadoEnPedidos =
+        (pedidos || []).some(function(pedido){
+            return jsonContieneProductoCirigua(pedido.productos, producto.nombre);
+        });
+
+    return {
+        usado: usadoEnPedidos,
+        tipo: usadoEnPedidos ? "pedidos" : null
+    };
+}
+
+async function eliminarProductoSupabase(producto){
+    await asegurarSesionCirigua();
+
+    const referencias =
+        await productoTieneReferenciasSupabase(producto);
+
+    if(referencias.usado){
+        return {
+            eliminado: false,
+            bloqueado: true,
+            tipo: referencias.tipo
+        };
+    }
+
+    const { error } =
+        await supabaseClient
+            .from("productos")
+            .delete()
+            .eq("id", producto.id);
+
+    if(error){
+        throw error;
+    }
+
+    return {
+        eliminado: true,
+        bloqueado: false
+    };
+}
+
 function formatearFechaSupabase(fechaValor){
     if(!fechaValor){
         return "";

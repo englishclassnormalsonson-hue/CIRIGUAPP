@@ -170,23 +170,36 @@ function mostrarProductos(){
             );
         };
 
-        let eliminar =
+        let desactivar =
             document.createElement("button");
 
-        eliminar.classList.add("eliminar-producto");
+        desactivar.classList.add("eliminar-producto");
 
-        eliminar.innerHTML = producto.activo === false ? "Activar" : "Desactivar";
+        desactivar.innerHTML = producto.activo === false ? "Activar" : "Desactivar";
 
-        eliminar.onclick = function(){
+        desactivar.onclick = function(){
 
-            cambiarEstadoProducto(eliminar, producto.id);
+            cambiarEstadoProducto(desactivar, producto.id);
+        };
+
+        let eliminarDefinitivo =
+            document.createElement("button");
+
+        eliminarDefinitivo.classList.add("eliminar-definitivo-producto");
+
+        eliminarDefinitivo.innerHTML = "🗑 Eliminar";
+
+        eliminarDefinitivo.onclick = function(){
+
+            eliminarProductoDefinitivo(eliminarDefinitivo, producto.id);
         };
 
         fila.appendChild(nombre);
         fila.appendChild(precio);
         fila.appendChild(categoria);
         fila.appendChild(guardar);
-        fila.appendChild(eliminar);
+        fila.appendChild(desactivar);
+        fila.appendChild(eliminarDefinitivo);
 
         contenedor.appendChild(fila);
     });
@@ -433,6 +446,84 @@ function cambiarEstadoProducto(boton, id){
             console.error("Error cambiando estado del producto en Supabase:", error);
 
             alert("No se pudo cambiar el estado del producto.");
+
+        }finally{
+
+            if(boton){
+                boton.disabled = false;
+            }
+        }
+    });
+}
+
+function eliminarProductoDefinitivo(boton, id){
+    return ejecutarAccionCritica(boton, async function(){
+
+        let productoActual =
+            productosSupabase.find(function(producto){
+                return producto.id === id;
+            });
+
+        if(!productoActual){
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        let confirmar =
+            confirm(
+                "¿Desea eliminar definitivamente este producto?\n\n" +
+                "Esta acción no se puede deshacer."
+            );
+
+        if(!confirmar){
+
+            if(boton){
+                boton.disabled = false;
+            }
+
+            return false;
+        }
+
+        try{
+
+            const resultado =
+                await eliminarProductoSupabase(productoActual);
+
+            if(resultado && resultado.bloqueado){
+                alert(
+                    "Este producto ya hace parte del historial de ventas o de pedidos activos y no puede eliminarse.\n\n" +
+                    "Puede desactivarlo si no desea seguir utilizándolo."
+                );
+                return false;
+            }
+
+            registrarAuditoria(
+                "producto_eliminado",
+                productoActual
+            );
+
+            productosSupabase =
+                productosSupabase.filter(function(producto){
+                    return producto.id !== id;
+                });
+
+            mostrarProductos();
+
+            alert("Producto eliminado correctamente.");
+
+            return true;
+
+        }catch(error){
+
+            console.error("Error eliminando producto en Supabase:", error);
+
+            alert("No se pudo eliminar el producto.");
+
+            return false;
 
         }finally{
 
