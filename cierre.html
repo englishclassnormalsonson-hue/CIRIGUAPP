@@ -32,6 +32,12 @@
 
         <h2 id="ventas">$0</h2>
 
+        <button
+            class="reiniciar-turno-btn"
+            onclick="reiniciarTurnoCapacitacion(this)">
+            🔄 Reiniciar Turno Actual
+        </button>
+
     </div>
 
     <div class="total-mesa">
@@ -80,6 +86,31 @@
 
     </button>
 
+    <div id="modalReinicioTurno" class="modal-reinicio-turno" hidden>
+        <form id="formReinicioTurno" class="modal-reinicio-panel">
+            <h2>Confirmar contraseña</h2>
+            <p>Ingrese nuevamente la contraseña del usuario autenticado.</p>
+
+            <input
+                id="passwordReinicioTurno"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Contraseña"
+                required
+            >
+
+            <div class="acciones-reinicio-turno">
+                <button type="submit" class="guardar">
+                    Continuar
+                </button>
+
+                <button type="button" class="volver" id="cancelarReinicioTurno">
+                    Cancelar
+                </button>
+            </div>
+        </form>
+    </div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase.js"></script>
 <script src="auth.js"></script>
@@ -119,9 +150,20 @@ async function cargarResumenCierre(){
         return;
     }
     try{
+        let periodoActual = null;
+        if(typeof obtenerPeriodoCajaAbiertoSupabase === "function"){
+            periodoActual = await obtenerPeriodoCajaAbiertoSupabase();
+        }
+
         let ventasSupabase = await obtenerVentasSupabase();
         let ventasAbiertas = ventasSupabase.filter(function(venta){
-            return !venta.cierre_id;
+            if(venta.cierre_id){
+                return false;
+            }
+            if(!periodoActual || !periodoActual.inicio){
+                return true;
+            }
+            return new Date(venta.timestamp).getTime() >= new Date(periodoActual.inicio).getTime();
         });
         ventas = sumarTotalVentas(ventasAbiertas);
         cantidadFacturas = ventasAbiertas.length;
@@ -145,6 +187,11 @@ async function cargarResumenCierre(){
         });
         promedio = cantidadFacturas > 0 ? ventas / cantidadFacturas : 0;
         listaGastos = await obtenerGastosSupabase();
+        if(periodoActual && periodoActual.id){
+            listaGastos = listaGastos.filter(function(gasto){
+                return gasto.periodo_id === periodoActual.id;
+            });
+        }
         gastos = calcularTotalGastos(listaGastos);
         setStorageItem("historialVentas", JSON.stringify(ventasSupabase));
         setStorageItem("gastosHoy", JSON.stringify(listaGastos));
@@ -152,6 +199,88 @@ async function cargarResumenCierre(){
         console.warn("No se pudo cargar resumen desde Supabase; usando cache local.", error);
     }
     pintarResumenCierre();
+}
+
+function solicitarContrasenaReinicio(){
+    return new Promise(function(resolve){
+        const modal = document.getElementById("modalReinicioTurno");
+        const form = document.getElementById("formReinicioTurno");
+        const input = document.getElementById("passwordReinicioTurno");
+        const cancelar = document.getElementById("cancelarReinicioTurno");
+
+        if(!modal || !form || !input || !cancelar){
+            resolve(null);
+            return;
+        }
+
+        function cerrar(valor){
+            form.removeEventListener("submit", confirmar);
+            cancelar.removeEventListener("click", cancelarAccion);
+            modal.hidden = true;
+            input.value = "";
+            resolve(valor);
+        }
+
+        function confirmar(evento){
+            evento.preventDefault();
+            cerrar(input.value);
+        }
+
+        function cancelarAccion(){
+            cerrar(null);
+        }
+
+        form.addEventListener("submit", confirmar);
+        cancelar.addEventListener("click", cancelarAccion);
+        modal.hidden = false;
+        input.focus();
+    });
+}
+
+function reiniciarTurnoCapacitacion(boton){
+    return ejecutarAccionCritica(boton, async function(){
+        const password = await solicitarContrasenaReinicio();
+
+        if(!password){
+            return false;
+        }
+
+        try{
+            await validarContrasenaActualSupabase(password);
+        }catch(error){
+            console.warn("Contraseña inválida para reiniciar turno.", error);
+            alert("Contraseña incorrecta. No se reinició el turno.");
+            return false;
+        }
+
+        const confirmar = confirm(
+            "Esta acción reiniciará únicamente las ventas visibles del período actual.\n\n" +
+            "No eliminará el historial.\n\n" +
+            "¿Desea continuar?"
+        );
+
+        if(!confirmar){
+            return false;
+        }
+
+        try{
+            await reiniciarTurnoActualSupabase();
+            ventas = 0;
+            cantidadFacturas = 0;
+            clientesAtendidos = 0;
+            productoTop = "-";
+            promedio = 0;
+            listaGastos = [];
+            gastos = 0;
+            pintarResumenCierre();
+            alert("Turno reiniciado correctamente. El historial fue conservado.");
+            return true;
+        }catch(error){
+            console.error("No se pudo reiniciar el turno actual:", error);
+            alert("No se pudo reiniciar el turno. Los datos fueron conservados.");
+            return false;
+        }
+    });
 }
 
 function cerrarCaja(boton){

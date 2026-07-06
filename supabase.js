@@ -685,6 +685,122 @@ async function obtenerGastosSupabase(){
     });
 }
 
+async function obtenerPeriodoCajaAbiertoSupabase(){
+    await asegurarSesionCirigua();
+
+    const { data, error } = await supabaseClient
+        .from("caja_periodos")
+        .select("id,estado,inicio,fin,created_at")
+        .eq("estado", "abierto")
+        .order("inicio", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if(error){
+        throw error;
+    }
+
+    return data || null;
+}
+
+async function validarContrasenaActualSupabase(password){
+    await asegurarSesionCirigua();
+
+    const { data: userData, error: userError } =
+        await supabaseClient.auth.getUser();
+
+    if(userError){
+        throw userError;
+    }
+
+    const email =
+        userData && userData.user && userData.user.email
+            ? userData.user.email
+            : "";
+
+    if(!email || !password){
+        throw new Error("Credenciales incompletas");
+    }
+
+    const { error } =
+        await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
+
+    if(error){
+        throw error;
+    }
+
+    return true;
+}
+
+async function reiniciarTurnoActualSupabase(){
+    await asegurarSesionCirigua();
+
+    const periodoActual =
+        await obtenerPeriodoCajaAbiertoSupabase();
+
+    if(!periodoActual || !periodoActual.id){
+        const { data: nuevoSinPeriodo, error: errorNuevoSinPeriodo } =
+            await supabaseClient
+                .from("caja_periodos")
+                .insert({
+                    estado: "abierto",
+                    inicio: new Date().toISOString()
+                })
+                .select()
+                .single();
+
+        if(errorNuevoSinPeriodo){
+            throw errorNuevoSinPeriodo;
+        }
+
+        return nuevoSinPeriodo;
+    }
+
+    const finTurno =
+        new Date().toISOString();
+
+    const { error: errorCerrar } =
+        await supabaseClient
+            .from("caja_periodos")
+            .update({
+                estado: "cerrado",
+                fin: finTurno
+            })
+            .eq("id", periodoActual.id)
+            .eq("estado", "abierto");
+
+    if(errorCerrar){
+        throw errorCerrar;
+    }
+
+    const { data: nuevoPeriodo, error: errorNuevo } =
+        await supabaseClient
+            .from("caja_periodos")
+            .insert({
+                estado: "abierto",
+                inicio: finTurno
+            })
+            .select()
+            .single();
+
+    if(errorNuevo){
+        await supabaseClient
+            .from("caja_periodos")
+            .update({
+                estado: "abierto",
+                fin: null
+            })
+            .eq("id", periodoActual.id);
+
+        throw errorNuevo;
+    }
+
+    return nuevoPeriodo;
+}
+
 async function eliminarGastoSupabase(id){
     await asegurarSesionCirigua();
 
