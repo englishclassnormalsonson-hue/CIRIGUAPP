@@ -23,6 +23,59 @@ let categoriaSeleccionada = "Todos";
 let categoriasSupabase = [];
 let productosSupabase = [];
 
+const ORDEN_VISUAL_CATEGORIAS_CIRIGUA = [
+    "Greca",
+    "Tragos",
+    "Cervezas",
+    "Gaseosas",
+    "Micheladas",
+    "Jugos y bebidas",
+    "Aguas",
+    "Energizantes",
+    "Mecato",
+    "Confitería",
+    "Chocolatinas",
+    "Medias",
+    "Botellas",
+    "Litros",
+    "Garrafas",
+    "Otros"
+];
+
+function normalizarCategoriaOrden(valor){
+    return normalizeText(valor).replace(/\s+/g, " ").trim();
+}
+
+function ordenarCategoriasPedido(categorias){
+    const prioridad = {};
+    ORDEN_VISUAL_CATEGORIAS_CIRIGUA.forEach(function(nombre, indice){
+        prioridad[normalizarCategoriaOrden(nombre)] = indice;
+    });
+
+    return (categorias || []).slice().sort(function(a, b){
+        const prioridadA = prioridad[normalizarCategoriaOrden(a)];
+        const prioridadB = prioridad[normalizarCategoriaOrden(b)];
+        const tienePrioridadA = typeof prioridadA === "number";
+        const tienePrioridadB = typeof prioridadB === "number";
+
+        if(tienePrioridadA && tienePrioridadB){
+            return prioridadA - prioridadB;
+        }
+
+        if(tienePrioridadA){
+            return -1;
+        }
+
+        if(tienePrioridadB){
+            return 1;
+        }
+
+        return String(a || "").localeCompare(String(b || ""), "es", {
+            sensitivity: "base"
+        });
+    });
+}
+
 function mostrarCategoriasProductos(){
 
     const contenedor =
@@ -35,7 +88,7 @@ function mostrarCategoriasProductos(){
     contenedor.innerHTML = "";
 
     let categorias =
-        ["Todos"].concat(categoriasSupabase);
+        ordenarCategoriasPedido(categoriasSupabase).concat(["Todos"]);
 
     categorias.forEach(function(categoria){
 
