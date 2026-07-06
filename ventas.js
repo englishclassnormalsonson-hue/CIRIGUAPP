@@ -212,12 +212,18 @@ function calcularProductosTotales(productosPorCliente) {
 function crearDatosFacturaVenta(config) {
     let ahora = new Date();
     let productosPorCliente = config.productosPorCliente || {};
+    let tipoPunto = typeof normalizarTipoPuntoCirigua === "function"
+        ? normalizarTipoPuntoCirigua(config.tipoPunto || config.tipo_punto || obtenerTipoPuntoActual())
+        : String(config.tipoPunto || config.tipo_punto || "mesa");
+    let puntoNumero = Number(config.puntoNumero || config.punto_numero || config.mesa) || 0;
     let datosFactura = {
         factura: obtenerSiguienteFactura(),
         fecha: ahora.toLocaleDateString(),
         hora: ahora.toLocaleTimeString(),
         timestamp: ahora.toISOString(),
-        mesa: Number(config.mesa) || 0,
+        tipoPunto: tipoPunto,
+        puntoNumero: puntoNumero,
+        mesa: puntoNumero,
         cliente: Number(config.cliente) || 0,
         tipo: String(config.tipo || '').trim() || 'Cobro',
         total: Number(config.total) || 0,
@@ -273,7 +279,10 @@ function aumentarConsecutivoFactura() {
 }
 
 function ventasEquivalentes(ventaA, ventaB){
-    return Number(ventaA && ventaA.mesa) === Number(ventaB && ventaB.mesa) &&
+    let tipoA = (ventaA && (ventaA.tipoPunto || ventaA.tipo_punto)) || "mesa";
+    let tipoB = (ventaB && (ventaB.tipoPunto || ventaB.tipo_punto)) || "mesa";
+    return String(tipoA) === String(tipoB) &&
+        Number(ventaA && (ventaA.puntoNumero || ventaA.punto_numero || ventaA.mesa)) === Number(ventaB && (ventaB.puntoNumero || ventaB.punto_numero || ventaB.mesa)) &&
         Number(ventaA && ventaA.cliente) === Number(ventaB && ventaB.cliente) &&
         String((ventaA && ventaA.tipo) || "") === String((ventaB && ventaB.tipo) || "") &&
         Number(ventaA && ventaA.total) === Number(ventaB && ventaB.total) &&

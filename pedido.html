@@ -115,25 +115,37 @@ const parametrosPedido =
 new URLSearchParams(window.location.search);
 
 let mesa =
-parametrosPedido.get("mesa") || 1;
+Number(parametrosPedido.get(parametrosPedido.has("barra") ? "barra" : "mesa") || parametrosPedido.get("mesa") || 1);
+
+let tipoPuntoActual =
+String(parametrosPedido.get("tipo") || (parametrosPedido.has("barra") ? "barra" : "mesa")).toLowerCase() === "barra"
+    ? "barra"
+    : "mesa";
 
 let cliente =
 parametrosPedido.get("cliente") || 1;
 
+let etiquetaPuntoActual =
+(tipoPuntoActual === "barra" ? "Barra " : "Mesa ") + mesa;
+
 document.getElementById("tituloCliente").innerHTML =
-"Mesa " + mesa + " - Cliente " + cliente;
+etiquetaPuntoActual + " - Cliente " + cliente;
 
 document.getElementById("botonVolver").onclick = function(){
 
     window.location.href =
-    "clientes.html?mesa=" + mesa;
+    (tipoPuntoActual === "barra"
+        ? "clientes.html?tipo=barra&barra=" + mesa
+        : "clientes.html?tipo=mesa&mesa=" + mesa);
 };
 
 function verReciboMesa(){
 
     window.open(
 
-        "reciboMesa.html?mesa=" + mesa,
+        (tipoPuntoActual === "barra"
+            ? "reciboMesa.html?tipo=barra&barra=" + mesa
+            : "reciboMesa.html?tipo=mesa&mesa=" + mesa),
 
         "_blank"
     );

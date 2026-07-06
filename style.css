@@ -256,6 +256,9 @@ h2{
 .controles-plano{
     display:flex;
     justify-content:center;
+    align-items:center;
+    gap:14px;
+    flex-wrap:wrap;
     margin:-8px auto 18px;
 }
 
@@ -326,6 +329,38 @@ button:hover{
     line-height:1.1;
     position:relative;
     z-index:2;
+    flex-direction:column;
+    gap:2px;
+    overflow:hidden;
+    padding:0 8px;
+    box-sizing:border-box;
+}
+
+.mesa-plano .mesa-numero{
+    display:block;
+    width:100%;
+    text-align:center;
+}
+
+.mesa-plano .observacion-mapa{
+    display:block;
+    width:100%;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+    font-size:12px;
+    font-weight:800;
+    line-height:1.05;
+    opacity:0.92;
+}
+
+.mesa-plano.barra-plano.libre{
+    background:#9333ea !important;
+    color:white !important;
+}
+
+.mesa-plano.barra-plano{
+    font-size:30px;
 }
 
 .plano-referencia{
@@ -415,6 +450,59 @@ button:hover{
 
     color:white !important;
 
+}
+
+.pagada{
+    background:#2563eb !important;
+    color:white !important;
+}
+
+.observacion-punto{
+    max-width:780px;
+    margin:18px auto;
+    padding:18px;
+    border:1px solid rgba(255,255,255,0.14);
+    border-radius:18px;
+    background:rgba(15,23,42,0.42);
+    box-sizing:border-box;
+}
+
+.observacion-punto label{
+    display:block;
+    margin-bottom:10px;
+    color:#e5e7eb;
+    font-weight:800;
+    font-size:18px;
+}
+
+.observacion-fila{
+    display:flex;
+    gap:12px;
+    align-items:center;
+}
+
+.observacion-fila input{
+    flex:1;
+    min-height:52px;
+    border:none;
+    border-radius:14px;
+    padding:0 16px;
+    font-size:18px;
+}
+
+.guardar-observacion{
+    width:auto;
+    min-width:130px;
+    height:52px;
+    border-radius:14px;
+    background:#2563eb;
+    font-size:17px;
+}
+
+.estado-observacion{
+    min-height:22px;
+    margin:8px 0 0;
+    font-size:15px;
 }
 
 .leyenda{
@@ -514,6 +602,19 @@ button:hover{
 
     .mesa-plano{
         font-size:34px;
+    }
+
+    .mesa-plano.barra-plano{
+        font-size:27px;
+    }
+
+    .observacion-fila{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .guardar-observacion{
+        width:100%;
     }
 
     .plano-referencia{

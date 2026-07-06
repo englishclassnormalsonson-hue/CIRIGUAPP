@@ -740,6 +740,35 @@ function _resolveMesaArg(mesa){
     return mesa;
 }
 
+function normalizarTipoPuntoCirigua(tipo){
+    return String(tipo || "mesa").toLowerCase() === "barra" ? "barra" : "mesa";
+}
+
+function obtenerTipoPuntoActual(){
+    if(typeof tipoPuntoActual !== "undefined"){
+        return normalizarTipoPuntoCirigua(tipoPuntoActual);
+    }
+    return "mesa";
+}
+
+function etiquetaPuntoCirigua(tipo, numero){
+    tipo = normalizarTipoPuntoCirigua(tipo);
+    return (tipo === "barra" ? "Barra " : "Mesa ") + Number(numero || 0);
+}
+
+function queryPuntoCirigua(tipo, numero){
+    tipo = normalizarTipoPuntoCirigua(tipo);
+    return (tipo === "barra" ? "tipo=barra&barra=" : "tipo=mesa&mesa=") + Number(numero || 1);
+}
+
+function urlPuntoCirigua(pagina, tipo, numero, extra){
+    let query = queryPuntoCirigua(tipo, numero);
+    if(extra){
+        query += "&" + extra;
+    }
+    return pagina + "?" + query;
+}
+
 function claveCliente(mesa, numeroCliente){
     if(typeof numeroCliente === 'undefined'){
         numeroCliente = mesa;
@@ -747,27 +776,27 @@ function claveCliente(mesa, numeroCliente){
     }else{
         mesa = _resolveMesaArg(mesa);
     }
-    return "mesa_" + mesa + "_cliente_" + numeroCliente;
+    return normalizarTipoPuntoCirigua(obtenerTipoPuntoActual()) + "_" + mesa + "_cliente_" + numeroCliente;
 }
 
 function claveClientesDinamicos(mesa){
     mesa = _resolveMesaArg(mesa);
-    return "mesa_" + mesa + "_clientes";
+    return normalizarTipoPuntoCirigua(obtenerTipoPuntoActual()) + "_" + mesa + "_clientes";
 }
 
 function claveClientesInicializados(mesa){
     mesa = _resolveMesaArg(mesa);
-    return "mesa_" + mesa + "_clientesInicializados";
+    return normalizarTipoPuntoCirigua(obtenerTipoPuntoActual()) + "_" + mesa + "_clientesInicializados";
 }
 
 function claveTotalMesa(mesa){
     mesa = _resolveMesaArg(mesa);
-    return "totalMesa" + mesa;
+    return "total_" + normalizarTipoPuntoCirigua(obtenerTipoPuntoActual()) + "_" + mesa;
 }
 
 function claveEstadoMesa(mesa){
     mesa = _resolveMesaArg(mesa);
-    return "estadoMesa" + mesa;
+    return "estado_" + normalizarTipoPuntoCirigua(obtenerTipoPuntoActual()) + "_" + mesa;
 }
 
 function leerProductosCliente(mesa, numeroCliente){

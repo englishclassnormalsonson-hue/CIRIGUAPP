@@ -222,8 +222,26 @@ onclick="window.print()">
 const parametros =
 new URLSearchParams(window.location.search);
 
+function escaparHtmlRecibo(valor){
+    return String(valor || "").replace(/[<>&"']/g, function(caracter){
+        return {
+            "<": "&lt;",
+            ">": "&gt;",
+            "&": "&amp;",
+            "\"": "&quot;",
+            "'": "&#039;"
+        }[caracter];
+    });
+}
+
 let mesa =
-parametros.get("mesa");
+Number(parametros.get(parametros.has("barra") ? "barra" : "mesa") || parametros.get("mesa") || 1);
+
+let tipoPuntoActual =
+normalizarTipoPuntoCirigua(parametros.get("tipo") || (parametros.has("barra") ? "barra" : "mesa"));
+
+let etiquetaPuntoActual =
+etiquetaPuntoCirigua(tipoPuntoActual, mesa);
 
 let cliente =
 parametros.get("cliente");
@@ -237,7 +255,8 @@ let ultimaFactura = null;
 
 if(!tienePedidoActivo){
     let clienteSeleccion = Number(cliente);
-    if(ultimaVenta && Number(ultimaVenta.mesa) === Number(mesa) &&
+    if(ultimaVenta && normalizarTipoPuntoCirigua(ultimaVenta.tipoPunto || "mesa") === tipoPuntoActual &&
+        Number(ultimaVenta.mesa) === Number(mesa) &&
         (Number(ultimaVenta.cliente) === clienteSeleccion ||
          (Number(ultimaVenta.cliente) === 0 &&
           String(ultimaVenta.tipo || '').toLowerCase().indexOf('cobro mesa') !== -1 &&
@@ -246,7 +265,8 @@ if(!tienePedidoActivo){
         ultimaFactura = ultimaVenta;
     } else {
         ultimaFactura = historial.slice().reverse().find(function(f){
-            return Number(f.mesa) === Number(mesa) &&
+            return normalizarTipoPuntoCirigua(f.tipoPunto || "mesa") === tipoPuntoActual &&
+                Number(f.mesa) === Number(mesa) &&
                 (Number(f.cliente) === clienteSeleccion ||
                  (Number(f.cliente) === 0 &&
                   String(f.tipo || '').toLowerCase().indexOf('cobro mesa') !== -1 &&
@@ -301,8 +321,9 @@ document.getElementById("datos").innerHTML =
 
 "<b>Factura N°:</b> " +
 String(numeroFactura).padStart(6,"0") +
-"<br><br><b>Mesa:</b> " +
-mesa +
+"<br><br><b>Punto:</b> " +
+etiquetaPuntoActual +
+(ultimaFactura && ultimaFactura.observacion ? "<br><b>Observación:</b> " + escaparHtmlRecibo(ultimaFactura.observacion) : "") +
 "<br><b>Cliente:</b> " +
 cliente +
 "<br><b>Tipo:</b> " + (ultimaFactura ? ultimaFactura.tipo : "Cobro Individual") +
@@ -397,8 +418,9 @@ function renderizarReciboIndividual(venta){
     document.getElementById("datos").innerHTML =
         "<b>Factura N°:</b> " +
         String(venta.factura).padStart(6,"0") +
-        "<br><br><b>Mesa:</b> " +
-        mesa +
+        "<br><br><b>Punto:</b> " +
+        etiquetaPuntoCirigua(venta.tipoPunto || tipoPuntoActual, venta.puntoNumero || venta.mesa || mesa) +
+        (venta.observacion ? "<br><b>Observación:</b> " + escaparHtmlRecibo(venta.observacion) : "") +
         "<br><b>Cliente:</b> " +
         cliente +
         "<br><b>Tipo:</b> " + venta.tipo +
@@ -437,7 +459,8 @@ async function actualizarReciboDesdeSupabase(){
         let ventas = await obtenerVentasSupabase();
         guardarHistorialVentasEnCache(ventas);
         let venta = ventas.slice().reverse().find(function(f){
-            return Number(f.mesa) === Number(mesa) &&
+            return normalizarTipoPuntoCirigua(f.tipoPunto || "mesa") === tipoPuntoActual &&
+                Number(f.mesa) === Number(mesa) &&
                 (Number(f.cliente) === Number(cliente) ||
                  (Number(f.cliente) === 0 &&
                   f.productosPorCliente &&

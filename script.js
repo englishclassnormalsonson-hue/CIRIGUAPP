@@ -4,10 +4,15 @@ const parametros =
     new URLSearchParams(window.location.search);
 
 let mesaActual =
-    parametros.get("mesa") || 1;
+Number(parametros.get(parametros.has("barra") ? "barra" : "mesa") || parametros.get("mesa") || 1);
+
+let tipoActualPedido =
+    typeof tipoPuntoActual !== "undefined"
+        ? normalizarTipoPuntoCirigua(tipoPuntoActual)
+        : normalizarTipoPuntoCirigua(parametros.get("tipo") || (parametros.has("barra") ? "barra" : "mesa"));
 
 let clienteActual =
-    parametros.get("cliente") || 1;
+parametros.get("cliente") || 1;
 // Mesa-related helper functions are centralized in `utils.js` (claveCliente, leerProductosCliente, etc.)
 
 let productos = {};
@@ -177,7 +182,8 @@ async function recargarPedidoDesdeSupabase(){
         let productosRemotos =
             await leerPedidoClienteSupabase(
                 mesaActual,
-                clienteActual
+                clienteActual,
+                tipoActualPedido
             );
         if(!productosRemotos || typeof productosRemotos !== "object" || Array.isArray(productosRemotos)){
             productosRemotos = {};
@@ -224,11 +230,13 @@ function limpiarCliente(numeroCliente){
 
     return borrarPedidoClienteSupabase(
         mesaActual,
-        numeroCliente
+        numeroCliente,
+        tipoActualPedido
     ).then(function(){
 
         return actualizarEstadoMesaPorConsumosSupabase(
-            mesaActual
+            mesaActual,
+            tipoActualPedido
         );
 
     }).catch(function(error){
@@ -250,7 +258,8 @@ async function agregarProducto(nombre, precio) {
                 clienteActual,
                 nombre,
                 precio,
-                1
+                1,
+                tipoActualPedido
             );
         aplicarPedidoRemoto(productosRemotos);
     }catch(error){
@@ -276,7 +285,8 @@ async function quitarProducto(nombre) {
                     mesaActual,
                     clienteActual,
                     nombre,
-                    1
+                    1,
+                    tipoActualPedido
                 );
             aplicarPedidoRemoto(productosRemotos);
         }catch(error){
@@ -446,7 +456,8 @@ window.onload = async function () {
         productos =
             await leerPedidoClienteSupabase(
                 mesaActual,
-                clienteActual
+                clienteActual,
+                tipoActualPedido
             );
 
         if(!productos || typeof productos !== "object" || Array.isArray(productos)){
@@ -474,7 +485,7 @@ window.onload = async function () {
 
     if(supabaseClient && typeof supabaseClient.channel === "function"){
         supabaseClient
-            .channel("cirigua-pedido-" + mesaActual + "-" + clienteActual)
+            .channel("cirigua-pedido-" + tipoActualPedido + "-" + mesaActual + "-" + clienteActual)
             .on("postgres_changes", {
                 event: "*",
                 schema: "public",
@@ -521,6 +532,8 @@ function cobrarCliente(boton){
 
     let datosFactura = crearDatosFacturaVenta({
         mesa: mesaActual,
+        tipoPunto: tipoActualPedido,
+        puntoNumero: mesaActual,
         cliente: clienteActual,
         tipo: "Cobro Individual",
         total: total,
@@ -552,7 +565,7 @@ function cobrarCliente(boton){
     );
 
     window.location.href =
-    "clientes.html?mesa=" + mesaActual;
+    urlPuntoCirigua("clientes.html", tipoActualPedido, mesaActual);
     });
 }
 
@@ -560,13 +573,7 @@ function verRecibo(){
 
     window.open(
 
-        "recibo.html?mesa=" +
-
-        mesaActual +
-
-        "&cliente=" +
-
-        clienteActual,
+        urlPuntoCirigua("recibo.html", tipoActualPedido, mesaActual, "cliente=" + clienteActual),
 
         "_blank"
     );

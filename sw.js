@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ciriguapp-static-v12";
+const CACHE_VERSION = "ciriguapp-static-v13";
 
 const STATIC_ASSETS = [
     "./",

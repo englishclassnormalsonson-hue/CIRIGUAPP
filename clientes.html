@@ -37,6 +37,27 @@
 
     </div>
 
+    <div class="clientes-container observacion-punto">
+
+        <label for="observacionPunto">Observación o referencia del cliente (opcional)</label>
+
+        <div class="observacion-fila">
+            <input
+                id="observacionPunto"
+                type="text"
+                maxlength="120"
+                placeholder="Ej: Don Carlos, camisa roja, pagan separados"
+            >
+
+            <button class="boton-principal guardar-observacion" onclick="guardarObservacionPuntoActual(this)">
+                Guardar
+            </button>
+        </div>
+
+        <p id="estadoObservacion" class="estado-observacion"></p>
+
+    </div>
+
     <div class="clientes-container acciones-mesa">
 
         <button class="nuevo-cliente" onclick="crearCliente()">
@@ -91,13 +112,33 @@
 const parametros =
     new URLSearchParams(window.location.search);
 
+const tipoPuntoActual =
+    normalizarTipoPuntoCirigua(
+        parametros.get("tipo") || (parametros.has("barra") ? "barra" : "mesa")
+    );
+
 const mesaActual =
-    parametros.get("mesa") || 1;
+    Number(parametros.get(tipoPuntoActual === "barra" ? "barra" : "mesa") || parametros.get("mesa") || 1);
+
+const etiquetaPuntoActual =
+    etiquetaPuntoCirigua(tipoPuntoActual, mesaActual);
 
 const clientesFijos = [1, 2, 3];
 
 document.getElementById("tituloMesa").innerHTML =
-    "MESA " + mesaActual;
+    etiquetaPuntoActual.toUpperCase();
+
+document.querySelector(".marcar-cobro").innerHTML =
+    "🔴 Marcar " + etiquetaPuntoActual + " para Cobro";
+
+document.querySelector(".cobrar-mesa").innerHTML =
+    "💰 Cobrar " + etiquetaPuntoActual + " Completa";
+
+document.querySelector(".mantener-ocupada").innerHTML =
+    "🔵 Mantener Ocupada";
+
+document.querySelector(".liberar-mesa").innerHTML =
+    "🟢 Liberar " + etiquetaPuntoActual;
 
 // Mesas utilities (claveCliente, leerProductosCliente, obtenerClientesDinamicos, etc.)
 // fueron centralizadas en `utils.js` to avoid duplication.
@@ -125,7 +166,7 @@ function mostrarClientes(){
 
         fila.innerHTML = `
             <button class="cliente-card"
-            onclick="window.location.href='pedido.html?mesa=${mesaActual}&cliente=${numero}'">
+            onclick="window.location.href='${urlPuntoCirigua("pedido.html", tipoPuntoActual, mesaActual, "cliente=" + numero)}'">
 
                 Cliente ${numero}
 
@@ -179,7 +220,8 @@ async function crearCliente(){
 
         await crearClienteMesaSupabase(
             mesaActual,
-            nuevoNumero
+            nuevoNumero,
+            tipoPuntoActual
         );
 
         clientesDinamicos.push(nuevoNumero);
@@ -232,7 +274,8 @@ async function eliminarCliente(numero){
 
         await borrarPedidoClienteSupabase(
             mesaActual,
-            numero
+            numero,
+            tipoPuntoActual
         );
 
         let clientesDinamicos =
@@ -278,7 +321,8 @@ async function marcarMesaParaCobro(){
 
         await cambiarEstadoMesaSupabase(
             mesaActual,
-            "cobro"
+            "cobro",
+            tipoPuntoActual
         );
 
         setStorageItem(
@@ -286,7 +330,7 @@ async function marcarMesaParaCobro(){
             "cobro"
         );
 
-        alert("Mesa marcada para cobro.");
+        alert(etiquetaPuntoActual + " marcada para cobro.");
 
     }catch(error){
 
@@ -310,7 +354,7 @@ function cobrarMesaCompleta(boton){
     }
 
     if(!confirm(
-        "¿Confirma el cobro de la Mesa " + mesaActual +
+        "¿Confirma el cobro de " + etiquetaPuntoActual +
         " por $" + totalMesa.toLocaleString() + "?"
     )){
         return false;
@@ -326,8 +370,10 @@ function cobrarMesaCompleta(boton){
 
     let datosFactura = crearDatosFacturaVenta({
         mesa: mesaActual,
+        tipoPunto: tipoPuntoActual,
+        puntoNumero: mesaActual,
         cliente: 0,
-        tipo: "Cobro Mesa",
+        tipo: tipoPuntoActual === "barra" ? "Cobro Barra" : "Cobro Mesa",
         total: totalMesa,
         productosPorCliente: productosPorCliente
     });
@@ -348,11 +394,12 @@ function cobrarMesaCompleta(boton){
 
     try{
 
-        await borrarTodosClientesMesaSupabase(mesaActual);
+        await borrarTodosClientesMesaSupabase(mesaActual, tipoPuntoActual);
 
         await cambiarEstadoMesaSupabase(
             mesaActual,
-            "libre"
+            "libre",
+            tipoPuntoActual
         );
 
     }catch(error){
@@ -382,7 +429,7 @@ function cobrarMesaCompleta(boton){
 
     mostrarClientes();
 
-    alert("Mesa cobrada correctamente.");
+    alert(etiquetaPuntoActual + " cobrada correctamente.");
 
     window.location.replace("index.html");
     });
@@ -394,7 +441,8 @@ async function mantenerMesaOcupada(){
 
         await cambiarEstadoMesaSupabase(
             mesaActual,
-            "pagada"
+            "pagada",
+            tipoPuntoActual
         );
 
         setStorageItem(
@@ -403,7 +451,7 @@ async function mantenerMesaOcupada(){
         );
 
         alert(
-            "Mesa marcada como pagada y ocupada."
+            etiquetaPuntoActual + " marcada como pagada y ocupada."
         );
 
         window.location.href =
@@ -424,11 +472,12 @@ async function liberarMesa(){
 
     try{
 
-        await borrarTodosClientesMesaSupabase(mesaActual);
+        await borrarTodosClientesMesaSupabase(mesaActual, tipoPuntoActual);
 
         await cambiarEstadoMesaSupabase(
             mesaActual,
-            "libre"
+            "libre",
+            tipoPuntoActual
         );
 
     }catch(error){
@@ -457,7 +506,7 @@ async function liberarMesa(){
     setStorageItem(claveTotalMesa(), 0);
 
     alert(
-        "Mesa liberada correctamente."
+        etiquetaPuntoActual + " liberada correctamente."
     );
 
     window.location.href =
@@ -468,7 +517,7 @@ function verReciboMesa(){
 
     window.open(
 
-        "reciboMesa.html?mesa=" + mesaActual,
+        urlPuntoCirigua("reciboMesa.html", tipoPuntoActual, mesaActual),
 
         "_blank"
 
@@ -480,7 +529,7 @@ async function iniciarClientes(){
     try{
 
         let clientesSupabase =
-            await obtenerClientesMesaSupabase(mesaActual);
+            await obtenerClientesMesaSupabase(mesaActual, tipoPuntoActual);
 
         let clientesDinamicos = [];
 
@@ -513,6 +562,7 @@ async function iniciarClientes(){
         );
 
         mostrarClientes();
+        await cargarObservacionPunto();
 
     }catch(error){
 
@@ -522,6 +572,56 @@ async function iniciarClientes(){
         );
 
         mostrarClientes();
+        await cargarObservacionPunto();
+    }
+}
+
+async function cargarObservacionPunto(){
+    const input = document.getElementById("observacionPunto");
+    if(!input){
+        return;
+    }
+    try{
+        input.value = await obtenerObservacionPuntoSupabase(tipoPuntoActual, mesaActual);
+    }catch(error){
+        console.warn("No se pudo cargar la observación del punto.", error);
+    }
+}
+
+async function guardarObservacionPuntoActual(boton){
+    const input = document.getElementById("observacionPunto");
+    const estado = document.getElementById("estadoObservacion");
+    if(!input){
+        return;
+    }
+    const textoOriginal = boton ? boton.innerHTML : "";
+    if(boton){
+        boton.disabled = true;
+        boton.innerHTML = "Guardando...";
+    }
+    if(estado){
+        estado.textContent = "";
+    }
+    try{
+        await guardarObservacionPuntoSupabase(
+            tipoPuntoActual,
+            mesaActual,
+            input.value
+        );
+        if(estado){
+            estado.textContent = "Observación guardada.";
+        }
+    }catch(error){
+        console.error("No se pudo guardar la observación:", error);
+        if(estado){
+            estado.textContent = "No se pudo guardar la observación.";
+        }
+        alert("No se pudo guardar la observación.");
+    }finally{
+        if(boton){
+            boton.disabled = false;
+            boton.innerHTML = textoOriginal;
+        }
     }
 }
 
@@ -542,8 +642,19 @@ ciriguaAuthReady.then(function(){
             .on("postgres_changes", {
                 event: "*",
                 schema: "public",
-                table: "mesas",
+                table: "puntos_atencion",
                 filter: "numero=eq." + Number(mesaActual)
+            }, function(payload){
+                if(payload && payload.new && normalizarTipoPuntoCirigua(payload.new.tipo) !== tipoPuntoActual){
+                    return;
+                }
+                iniciarClientes();
+            })
+            .on("postgres_changes", {
+                event: "*",
+                schema: "public",
+                table: "ocupaciones_mesa",
+                filter: "mesa_numero=eq." + Number(mesaActual)
             }, function(){
                 iniciarClientes();
             })

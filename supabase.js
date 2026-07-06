@@ -140,12 +140,35 @@ function formatearFechaSupabase(fechaValor){
     return fecha.toLocaleDateString();
 }
 
-async function guardarPedidoClienteSupabase(mesa, numeroCliente, productos){
+function normalizarTipoPuntoSupabase(tipo){
+    return String(tipo || "mesa").toLowerCase() === "barra" ? "barra" : "mesa";
+}
+
+function obtenerTipoPuntoSupabase(tipo){
+    if(tipo){
+        return normalizarTipoPuntoSupabase(tipo);
+    }
+    if(typeof tipoPuntoActual !== "undefined"){
+        return normalizarTipoPuntoSupabase(tipoPuntoActual);
+    }
+    return "mesa";
+}
+
+function etiquetaPuntoSupabase(tipo, numero){
+    return (normalizarTipoPuntoSupabase(tipo) === "barra" ? "Barra " : "Mesa ") + Number(numero || 0);
+}
+
+function selectVentaCirigua(){
+    return "id,factura,mesa_numero,tipo_punto,punto_numero,observacion,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id";
+}
+
+async function guardarPedidoClienteSupabase(mesa, numeroCliente, productos, tipoPunto){
     await asegurarSesionCirigua();
 
     const { data: dataRpc, error: errorRpc } = await supabaseClient
-        .rpc("guardar_pedido_cliente_cirigua", {
-            p_mesa: Number(mesa),
+        .rpc("guardar_pedido_punto_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(mesa),
             p_cliente: Number(numeroCliente),
             p_productos: productos || {}
         });
@@ -157,12 +180,13 @@ async function guardarPedidoClienteSupabase(mesa, numeroCliente, productos){
     return dataRpc;
 }
 
-async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, precio, cantidad){
+async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, precio, cantidad, tipoPunto){
     await asegurarSesionCirigua();
 
     const { data, error } = await supabaseClient
-        .rpc("agregar_producto_cliente_cirigua", {
-            p_mesa: Number(mesa),
+        .rpc("agregar_producto_punto_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(mesa),
             p_cliente: Number(numeroCliente),
             p_nombre: String(nombre || ""),
             p_precio: Number(precio),
@@ -176,12 +200,13 @@ async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, preci
     return data && data.productos ? data.productos : {};
 }
 
-async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantidad){
+async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantidad, tipoPunto){
     await asegurarSesionCirigua();
 
     const { data, error } = await supabaseClient
-        .rpc("quitar_producto_cliente_cirigua", {
-            p_mesa: Number(mesa),
+        .rpc("quitar_producto_punto_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(mesa),
             p_cliente: Number(numeroCliente),
             p_nombre: String(nombre || ""),
             p_cantidad: Number(cantidad || 1)
@@ -194,12 +219,14 @@ async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantid
     return data && data.productos ? data.productos : {};
 }
 
-async function leerPedidoClienteSupabase(mesa, numeroCliente){
+async function leerPedidoClienteSupabase(mesa, numeroCliente, tipoPunto){
     await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
 
     const { data, error } = await supabaseClient
         .from("clientes_mesa")
         .select("productos")
+        .eq("tipo_punto", tipo)
         .eq("mesa_numero", Number(mesa))
         .eq("numero_cliente", Number(numeroCliente))
         .maybeSingle();
@@ -211,12 +238,14 @@ async function leerPedidoClienteSupabase(mesa, numeroCliente){
     return data ? data.productos : {};
 }
 
-async function borrarPedidoClienteSupabase(mesa, numeroCliente){
+async function borrarPedidoClienteSupabase(mesa, numeroCliente, tipoPunto){
     await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
 
     const { error } = await supabaseClient
         .from("clientes_mesa")
         .delete()
+        .eq("tipo_punto", tipo)
         .eq("mesa_numero", Number(mesa))
         .eq("numero_cliente", Number(numeroCliente));
 
@@ -225,18 +254,20 @@ async function borrarPedidoClienteSupabase(mesa, numeroCliente){
     }
 }
 
-async function crearClienteMesaSupabase(mesa, numeroCliente){
+async function crearClienteMesaSupabase(mesa, numeroCliente, tipoPunto){
     await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
 
     const { data, error } = await supabaseClient
         .from("clientes_mesa")
         .upsert({
+            tipo_punto: tipo,
             mesa_numero: Number(mesa),
             numero_cliente: Number(numeroCliente),
             productos: {},
             updated_at: new Date().toISOString()
         }, {
-            onConflict: "mesa_numero,numero_cliente"
+            onConflict: "tipo_punto,mesa_numero,numero_cliente"
         })
         .select()
         .single();
@@ -248,12 +279,14 @@ async function crearClienteMesaSupabase(mesa, numeroCliente){
     return data;
 }
 
-async function obtenerClientesMesaSupabase(mesa){
+async function obtenerClientesMesaSupabase(mesa, tipoPunto){
     await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
 
     const { data, error } = await supabaseClient
         .from("clientes_mesa")
         .select("numero_cliente,productos")
+        .eq("tipo_punto", tipo)
         .eq("mesa_numero", Number(mesa))
         .order("numero_cliente", { ascending: true });
 
@@ -264,12 +297,14 @@ async function obtenerClientesMesaSupabase(mesa){
     return data || [];
 }
 
-async function borrarTodosClientesMesaSupabase(mesa){
+async function borrarTodosClientesMesaSupabase(mesa, tipoPunto){
     await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
 
     const { error } = await supabaseClient
         .from("clientes_mesa")
         .delete()
+        .eq("tipo_punto", tipo)
         .eq("mesa_numero", Number(mesa));
 
     if(error){
@@ -277,8 +312,42 @@ async function borrarTodosClientesMesaSupabase(mesa){
     }
 }
 
-async function cambiarEstadoMesaSupabase(mesa, estado){
+async function cambiarEstadoMesaSupabase(mesa, estado, tipoPunto){
     await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
+
+    if(estado === "libre"){
+        const { data, error } = await supabaseClient
+            .rpc("liberar_punto_cirigua", {
+                p_tipo: tipo,
+                p_numero: Number(mesa)
+            });
+
+        if(error){
+            throw error;
+        }
+
+        return data;
+    }
+
+    if(tipo === "barra"){
+        const { data, error } = await supabaseClient
+            .from("puntos_atencion")
+            .update({
+                estado: estado,
+                updated_at: new Date().toISOString()
+            })
+            .eq("tipo", tipo)
+            .eq("numero", Number(mesa))
+            .select()
+            .single();
+
+        if(error){
+            throw error;
+        }
+
+        return data;
+    }
 
     const { data, error } = await supabaseClient
         .from("mesas")
@@ -312,12 +381,57 @@ async function obtenerMesasSupabase(){
     return data || [];
 }
 
-async function actualizarEstadoMesaPorConsumosSupabase(mesa){
+async function obtenerPuntosAtencionSupabase(){
+    await asegurarSesionCirigua();
+
+    const { data: puntos, error: errorPuntos } = await supabaseClient
+        .from("puntos_atencion")
+        .select("tipo,numero,estado,ocupacion_id,fijo,visible,updated_at")
+        .eq("visible", true)
+        .order("tipo", { ascending: true })
+        .order("numero", { ascending: true });
+
+    if(errorPuntos){
+        throw errorPuntos;
+    }
+
+    const { data: ocupaciones, error: errorOcupaciones } = await supabaseClient
+        .from("ocupaciones_mesa")
+        .select("id,tipo_punto,mesa_numero,observacion")
+        .eq("estado", "abierta");
+
+    if(errorOcupaciones){
+        throw errorOcupaciones;
+    }
+
+    const observaciones = {};
+    (ocupaciones || []).forEach(function(ocupacion){
+        const clave = normalizarTipoPuntoSupabase(ocupacion.tipo_punto) + ":" + Number(ocupacion.mesa_numero);
+        observaciones[clave] = ocupacion.observacion || "";
+    });
+
+    return (puntos || []).map(function(punto){
+        const tipo = normalizarTipoPuntoSupabase(punto.tipo);
+        const numero = Number(punto.numero);
+        return {
+            tipo: tipo,
+            numero: numero,
+            estado: punto.estado || "libre",
+            ocupacion_id: punto.ocupacion_id || null,
+            observacion: observaciones[tipo + ":" + numero] || "",
+            fijo: punto.fijo !== false,
+            visible: punto.visible !== false
+        };
+    });
+}
+
+async function actualizarEstadoMesaPorConsumosSupabase(mesa, tipoPunto){
     await asegurarSesionCirigua();
 
     const { data: estadoRpc, error: errorRpc } = await supabaseClient
-        .rpc("actualizar_estado_mesa_cirigua", {
-            p_mesa: Number(mesa)
+        .rpc("actualizar_estado_punto_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(mesa)
         });
 
     if(errorRpc){
@@ -325,6 +439,55 @@ async function actualizarEstadoMesaPorConsumosSupabase(mesa){
     }
 
     return estadoRpc;
+}
+
+async function guardarObservacionPuntoSupabase(tipoPunto, numero, observacion){
+    await asegurarSesionCirigua();
+
+    const { data, error } = await supabaseClient
+        .rpc("guardar_observacion_ocupacion_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(numero),
+            p_observacion: observacion || null
+        });
+
+    if(error){
+        throw error;
+    }
+
+    return data;
+}
+
+async function obtenerObservacionPuntoSupabase(tipoPunto, numero){
+    await asegurarSesionCirigua();
+    let tipo = obtenerTipoPuntoSupabase(tipoPunto);
+
+    const { data, error } = await supabaseClient
+        .from("ocupaciones_mesa")
+        .select("observacion")
+        .eq("tipo_punto", tipo)
+        .eq("mesa_numero", Number(numero))
+        .eq("estado", "abierta")
+        .maybeSingle();
+
+    if(error){
+        throw error;
+    }
+
+    return data ? (data.observacion || "") : "";
+}
+
+async function crearBarraDinamicaSupabase(){
+    await asegurarSesionCirigua();
+
+    const { data, error } = await supabaseClient
+        .rpc("crear_barra_dinamica_cirigua");
+
+    if(error){
+        throw error;
+    }
+
+    return data && data.punto ? data.punto : data;
 }
 
 function crearIdempotencyKeyCirigua(prefijo){
@@ -352,7 +515,10 @@ function normalizarVentaDesdeSupabase(venta){
         fecha: formatearFechaSupabase(venta.fecha || timestamp),
         hora: venta.hora || fechaVenta.toLocaleTimeString(),
         timestamp: fechaVenta.toISOString(),
-        mesa: Number(venta.mesa_numero || venta.mesa || 0),
+        tipoPunto: normalizarTipoPuntoSupabase(venta.tipo_punto || venta.tipoPunto || "mesa"),
+        puntoNumero: Number(venta.punto_numero || venta.puntoNumero || venta.mesa_numero || venta.mesa || 0),
+        mesa: Number(venta.punto_numero || venta.puntoNumero || venta.mesa_numero || venta.mesa || 0),
+        observacion: venta.observacion || "",
         ocupacion_id: venta.ocupacion_id || null,
         cliente: Number(venta.cliente || 0),
         tipo: venta.tipo || "Cobro",
@@ -375,11 +541,15 @@ async function registrarVentaSupabase(datosFactura){
         datosFactura.idempotencyKey ||
         crearIdempotencyKeyCirigua("venta");
 
+    let tipoPunto = obtenerTipoPuntoSupabase(datosFactura.tipoPunto || datosFactura.tipo_punto);
+    let numeroPunto = Number(datosFactura.puntoNumero || datosFactura.punto_numero || datosFactura.mesa);
+
     const { data, error } = await supabaseClient
-        .rpc("registrar_venta_cirigua", {
-            p_mesa: Number(datosFactura.mesa),
+        .rpc("registrar_venta_punto_cirigua", {
+            p_tipo: tipoPunto,
+            p_numero: numeroPunto,
             p_cliente: Number(datosFactura.cliente || 0),
-            p_tipo: String(datosFactura.tipo || "Cobro"),
+            p_tipo_cobro: String(datosFactura.tipo || "Cobro"),
             p_total: Number(datosFactura.total || 0),
             p_productos_por_cliente: datosFactura.productosPorCliente || {},
             p_productos: datosFactura.productos || {},
@@ -399,7 +569,7 @@ async function obtenerVentasSupabase(){
 
     const { data, error } = await supabaseClient
         .from("ventas")
-        .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
+        .select(selectVentaCirigua())
         .order("timestamp", { ascending: true });
 
     if(error){
@@ -416,7 +586,7 @@ async function obtenerUltimaVentaSupabase(){
 
     const { data, error } = await supabaseClient
         .from("ventas")
-        .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
+        .select(selectVentaCirigua())
         .order("timestamp", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -433,7 +603,7 @@ async function obtenerVentaPorFacturaSupabase(factura){
 
     const { data, error } = await supabaseClient
         .from("ventas")
-        .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
+        .select(selectVentaCirigua())
         .eq("factura", Number(factura))
         .maybeSingle();
 
@@ -449,7 +619,7 @@ async function obtenerVentasPorOcupacionSupabase(ocupacionId){
 
     const { data, error } = await supabaseClient
         .from("ventas")
-        .select("id,factura,mesa_numero,ocupacion_id,cliente,tipo,total,fecha,hora,timestamp,created_at,productos_por_cliente,productos,cierre_id")
+        .select(selectVentaCirigua())
         .eq("ocupacion_id", ocupacionId)
         .order("timestamp", { ascending: true });
 

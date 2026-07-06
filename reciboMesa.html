@@ -224,7 +224,25 @@ const parametros =
 new URLSearchParams(window.location.search);
 
 let mesa =
-parametros.get("mesa");
+Number(parametros.get(parametros.has("barra") ? "barra" : "mesa") || parametros.get("mesa") || 1);
+
+let tipoPuntoActual =
+normalizarTipoPuntoCirigua(parametros.get("tipo") || (parametros.has("barra") ? "barra" : "mesa"));
+
+let etiquetaPuntoActual =
+etiquetaPuntoCirigua(tipoPuntoActual, mesa);
+
+function escaparHtmlReciboMesa(valor){
+    return String(valor || "").replace(/[<>&"']/g, function(caracter){
+        return {
+            "<": "&lt;",
+            ">": "&gt;",
+            "&": "&amp;",
+            "\"": "&quot;",
+            "'": "&#039;"
+        }[caracter];
+    });
+}
 
 let ocupacionId =
 parametros.get("ocupacion") || parametros.get("ocupacion_id");
@@ -324,12 +342,16 @@ let historial = obtenerHistorialVentas();
 let ventaMesa = null;
 
 if(!tienePedidoActivo){
-    if(ultimaVenta && Number(ultimaVenta.mesa) === Number(mesa) && (ultimaVenta.tipo || '').toLowerCase().includes('mesa')){
+    if(ultimaVenta && normalizarTipoPuntoCirigua(ultimaVenta.tipoPunto || "mesa") === tipoPuntoActual &&
+        Number(ultimaVenta.mesa) === Number(mesa) &&
+        ((ultimaVenta.tipo || '').toLowerCase().includes('mesa') || (ultimaVenta.tipo || '').toLowerCase().includes('barra'))){
         ventaMesa = ultimaVenta;
     } else {
         // Buscar en el historial la última venta de esta mesa (cobro de mesa)
         ventaMesa = historial.slice().reverse().find(function(f){
-            return Number(f.mesa) === Number(mesa) && (String(f.tipo || '').toLowerCase().includes('mesa'));
+            return normalizarTipoPuntoCirigua(f.tipoPunto || "mesa") === tipoPuntoActual &&
+                Number(f.mesa) === Number(mesa) &&
+                (String(f.tipo || '').toLowerCase().includes('mesa') || String(f.tipo || '').toLowerCase().includes('barra'));
         }) || null;
     }
 }
@@ -355,9 +377,11 @@ document.getElementById("datos").innerHTML =
 
 String(numeroFactura).padStart(6,"0") +
 
-"<br><br><b>Mesa:</b> " +
+"<br><br><b>Punto:</b> " +
 
-mesa +
+etiquetaPuntoActual +
+
+(ventaMesa && ventaMesa.observacion ? "<br><b>Observación:</b> " + escaparHtmlReciboMesa(ventaMesa.observacion) : "") +
 
 "<br><b>Fecha:</b> " +
 
@@ -385,7 +409,7 @@ if(tienePedidoActivo){
 
 document.getElementById("productos").innerHTML = html;
 
-document.getElementById("total").innerHTML = "TOTAL MESA: $" + totalMesa.toLocaleString();
+document.getElementById("total").innerHTML = "TOTAL " + etiquetaPuntoActual.toUpperCase() + ": $" + totalMesa.toLocaleString();
 
 function combinarVentasPorCliente(ventas){
     let combinado = {};
@@ -433,8 +457,9 @@ function renderizarReciboMesaHistorico(ventas){
     document.getElementById("datos").innerHTML =
         "<b>Factura Venta N°:</b> " +
         String(ultima.factura).padStart(6,"0") +
-        "<br><br><b>Mesa:</b> " +
-        mesa +
+        "<br><br><b>Punto:</b> " +
+        etiquetaPuntoCirigua(primera.tipoPunto || tipoPuntoActual, primera.puntoNumero || primera.mesa || mesa) +
+        (primera.observacion ? "<br><b>Observación:</b> " + escaparHtmlReciboMesa(primera.observacion) : "") +
         (primera.ocupacion_id ? "<br><b>Ocupación:</b> " + primera.ocupacion_id : "") +
         "<br><b>Fecha:</b> " +
         fechaVenta.toLocaleDateString() +
@@ -443,7 +468,7 @@ function renderizarReciboMesaHistorico(ventas){
 
     let render = pintarProductosPorCliente(combinarVentasPorCliente(ventas));
     document.getElementById("productos").innerHTML = render.html;
-    document.getElementById("total").innerHTML = "TOTAL MESA: $" + render.total.toLocaleString();
+    document.getElementById("total").innerHTML = "TOTAL " + etiquetaPuntoCirigua(primera.tipoPunto || tipoPuntoActual, primera.puntoNumero || primera.mesa || mesa).toUpperCase() + ": $" + render.total.toLocaleString();
 }
 
 async function actualizarReciboMesaDesdeSupabase(){
@@ -459,7 +484,8 @@ async function actualizarReciboMesaDesdeSupabase(){
         }
         if(!ocupacionId){
             let ultima = ventas.slice().reverse().find(function(venta){
-                return Number(venta.mesa) === Number(mesa);
+                return normalizarTipoPuntoCirigua(venta.tipoPunto || "mesa") === tipoPuntoActual &&
+                    Number(venta.mesa) === Number(mesa);
             });
             ventas = ultima && ultima.ocupacion_id
                 ? ventas.filter(function(venta){
