@@ -54,16 +54,14 @@
 
         ADMINISTRADOR DEL CIERRE
 
-        <div class="selector-administrador-cierre" role="radiogroup" aria-label="Administrador del cierre">
-            <label>
-                <input type="radio" name="administradorCierre" value="Antonio">
-                Antonio
-            </label>
+        <div class="selector-administrador-cierre">
+            <label for="administradorCierre">Seleccione quién realiza el cierre</label>
 
-            <label>
-                <input type="radio" name="administradorCierre" value="Duvel">
-                Duvel
-            </label>
+            <select id="administradorCierre" name="administradorCierre" aria-label="Administrador del cierre">
+                <option value="">Seleccione quién realiza el cierre</option>
+                <option value="Antonio">Antonio</option>
+                <option value="Duvel">Duvel</option>
+            </select>
         </div>
 
     </div>
@@ -160,10 +158,10 @@ function cerrarCaja(boton){
     return ejecutarAccionCritica(boton, async function(){
 
     let administradorSeleccionado =
-        document.querySelector("input[name='administradorCierre']:checked");
+        document.getElementById("administradorCierre");
 
-    if(!administradorSeleccionado){
-        alert("Seleccione quién realiza el cierre diario: Antonio o Duvel.");
+    if(!administradorSeleccionado || !administradorSeleccionado.value){
+        alert("Seleccione quién realiza el cierre de caja.");
         return false;
     }
 

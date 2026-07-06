@@ -196,19 +196,20 @@ const DISTRIBUCION_MESAS_CIRIGUA = [
 
 const DISTRIBUCION_BARRAS_FIJAS_CIRIGUA = [
     { tipo: "barra", numero: 1, columna: 8, fila: 2 },
-    { tipo: "barra", numero: 2, columna: 9, fila: 2 },
-    { tipo: "barra", numero: 3, columna: 10, fila: 2 },
-    { tipo: "barra", numero: 4, columna: 11, fila: 2 },
-    { tipo: "barra", numero: 5, columna: 12, fila: 2 }
+    { tipo: "barra", numero: 2, columna: 8, fila: 3 },
+    { tipo: "barra", numero: 3, columna: 8, fila: 4 },
+    { tipo: "barra", numero: 4, columna: 8, fila: 5 },
+    { tipo: "barra", numero: 5, columna: 8, fila: 6 }
 ];
 
 function obtenerUbicacionBarraDinamica(numero){
     const indice = Math.max(0, Number(numero) - 6);
+    const columnasBarras = [10, 12, 9, 11];
     return {
         tipo: "barra",
         numero: Number(numero),
-        columna: 8 + (indice % 5),
-        fila: 3 + Math.floor(indice / 5)
+        columna: columnasBarras[Math.floor(indice / 5) % columnasBarras.length],
+        fila: 2 + (indice % 5)
     };
 }
 

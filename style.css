@@ -1823,30 +1823,43 @@ input::placeholder{
 
 .selector-administrador-cierre{
     display:flex;
+    flex-direction:column;
+    align-items:center;
     justify-content:center;
-    gap:14px;
-    flex-wrap:wrap;
+    gap:12px;
     margin-top:14px;
 }
 
 .selector-administrador-cierre label{
-    display:flex;
-    align-items:center;
-    gap:8px;
-    min-width:140px;
-    justify-content:center;
-    background:rgba(255,255,255,0.12);
-    border:1px solid rgba(255,255,255,0.18);
-    border-radius:16px;
-    padding:14px 18px;
+    display:block;
+    width:min(100%, 520px);
+    text-align:left;
+    background:transparent;
+    border:none;
+    border-radius:0;
+    padding:0;
     font-size:18px;
-    font-weight:700;
-    color:white;
+    font-weight:800;
+    color:#e5e7eb;
 }
 
-.selector-administrador-cierre input{
-    width:18px;
-    height:18px;
+.selector-administrador-cierre select{
+    width:min(100%, 520px);
+    min-height:62px;
+    border:none;
+    border-radius:18px;
+    padding:0 20px;
+    background:rgba(15,23,42,0.88);
+    color:white;
+    font-size:22px;
+    font-weight:800;
+    box-shadow:0 8px 18px rgba(0,0,0,0.35);
+    outline:2px solid rgba(245,158,11,0.32);
+    cursor:pointer;
+}
+
+.selector-administrador-cierre select:focus{
+    outline:3px solid rgba(245,158,11,0.68);
 }
 
 .acciones-header{
@@ -1872,7 +1885,8 @@ input::placeholder{
     .acciones-header .volver{
         width:100%;
     }
-    .selector-administrador-cierre label{
+    .selector-administrador-cierre label,
+    .selector-administrador-cierre select{
         width:100%;
     }
 }
