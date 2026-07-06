@@ -330,26 +330,28 @@ async function cambiarEstadoMesaSupabase(mesa, estado, tipoPunto){
         return data;
     }
 
-    if(tipo === "barra"){
-        const { data, error } = await supabaseClient
-            .from("puntos_atencion")
-            .update({
-                estado: estado,
-                updated_at: new Date().toISOString()
-            })
-            .eq("tipo", tipo)
-            .eq("numero", Number(mesa))
-            .select()
-            .single();
+    const cambioPunto = {
+        estado: estado,
+        updated_at: new Date().toISOString()
+    };
 
-        if(error){
-            throw error;
-        }
+    const { data: punto, error: errorPunto } = await supabaseClient
+        .from("puntos_atencion")
+        .update(cambioPunto)
+        .eq("tipo", tipo)
+        .eq("numero", Number(mesa))
+        .select()
+        .maybeSingle();
 
-        return data;
+    if(errorPunto){
+        throw errorPunto;
     }
 
-    const { data, error } = await supabaseClient
+    if(tipo === "barra"){
+        return punto;
+    }
+
+    const { data: mesaActualizada, error } = await supabaseClient
         .from("mesas")
         .update({
             estado: estado,
@@ -363,7 +365,7 @@ async function cambiarEstadoMesaSupabase(mesa, estado, tipoPunto){
         throw error;
     }
 
-    return data;
+    return punto || mesaActualizada;
 }
 
 async function obtenerMesasSupabase(){

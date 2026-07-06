@@ -2002,6 +2002,16 @@ button{
 .detalle-cierre,
 .panel-filtros{
     width:min(100%, 1320px);
+    margin-inline:auto;
+}
+
+body:has(.pedido-container) .encabezado,
+body:has(.pedido-container) .barra-superior,
+body:has(.pedido-container) .acciones,
+body:has(.pedido-container) .acciones-volver{
+    width:min(100%, 1500px);
+    margin-left:auto;
+    margin-right:auto;
 }
 
 @media (min-width: 1200px){
@@ -2010,7 +2020,7 @@ button{
     }
 
     .pedido-container{
-        max-width:min(1500px, 96vw);
+        width:min(1500px, 96vw);
     }
 
     .productos{
@@ -2078,6 +2088,24 @@ button{
 @media (max-width: 767px){
     body{
         padding:12px;
+    }
+
+    .encabezado.app-header{
+        width:100%;
+        grid-template-columns:1fr;
+        gap:10px;
+        padding:12px;
+    }
+
+    .app-header-left,
+    .app-header-right,
+    .app-header-center{
+        width:100%;
+        justify-content:center;
+    }
+
+    .app-header-center{
+        max-width:100%;
     }
 
     h1{
