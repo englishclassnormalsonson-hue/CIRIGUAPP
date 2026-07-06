@@ -1972,3 +1972,460 @@ input::placeholder{
 
     margin:0;
 }
+
+/* Responsive final: adapta escala y espacios sin cambiar lógica ni posiciones. */
+html{
+    -webkit-text-size-adjust:100%;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    overflow-x:hidden;
+}
+
+img,
+input,
+select,
+button{
+    max-width:100%;
+}
+
+.pedido-container,
+.clientes-container,
+.admin-panel,
+.dashboard-grid,
+.gastos-workspace,
+.historial-lista,
+.detalle-cierre,
+.panel-filtros{
+    width:min(100%, 1320px);
+}
+
+@media (min-width: 1200px){
+    body{
+        padding:clamp(14px, 1.1vw, 22px);
+    }
+
+    .pedido-container{
+        max-width:min(1500px, 96vw);
+    }
+
+    .productos{
+        grid-template-columns:repeat(auto-fit, minmax(210px, 1fr));
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1199px){
+    body{
+        padding:14px;
+    }
+
+    .login-shell{
+        max-width:460px;
+    }
+
+    .login-panel{
+        padding:30px;
+    }
+
+    .login-panel .logo img{
+        width:clamp(104px, 12vw, 128px);
+    }
+
+    .login-panel h1{
+        font-size:clamp(40px, 5vw, 54px);
+    }
+
+    .login-panel p{
+        font-size:20px;
+    }
+
+    #mesas{
+        --mesa-ancho:88px;
+        --mesa-alto:78px;
+        column-gap:8px;
+        row-gap:6px;
+        padding:10px;
+    }
+
+    .mesa-plano{
+        font-size:34px;
+    }
+
+    .mesa-plano.barra-plano{
+        font-size:28px;
+    }
+
+    .menu-admin{
+        gap:12px;
+    }
+
+    .ventas-btn,
+    .historial-btn,
+    .productos-admin-btn,
+    .gastos-btn,
+    .cierre-btn,
+    .historial-cierres-btn{
+        width:190px;
+        height:60px;
+        font-size:17px;
+    }
+}
+
+@media (max-width: 767px){
+    body{
+        padding:12px;
+    }
+
+    h1{
+        font-size:clamp(30px, 9vw, 42px);
+    }
+
+    h2{
+        margin-top:14px;
+        margin-bottom:12px;
+        font-size:clamp(22px, 6vw, 30px);
+    }
+
+    p{
+        font-size:clamp(15px, 4vw, 18px);
+    }
+
+    .login-page{
+        align-items:flex-start;
+        padding:12px;
+        min-height:100svh;
+    }
+
+    .login-shell{
+        max-width:430px;
+        margin:auto;
+    }
+
+    .login-panel{
+        padding:clamp(18px, 5vw, 26px);
+        border-radius:22px;
+    }
+
+    .login-panel .logo img{
+        width:clamp(82px, 24vw, 112px);
+        border-radius:14px;
+    }
+
+    .login-panel h1{
+        margin-top:10px;
+        font-size:clamp(32px, 10vw, 44px);
+        line-height:1;
+    }
+
+    .login-panel p{
+        margin:6px 0 0;
+        font-size:clamp(16px, 4.8vw, 20px);
+    }
+
+    .login-form{
+        gap:10px;
+        margin-top:18px;
+    }
+
+    .login-form label{
+        font-size:16px;
+    }
+
+    .login-form input{
+        min-height:48px;
+        border-radius:13px;
+        padding:0 14px;
+        font-size:17px;
+    }
+
+    .login-submit{
+        height:52px;
+        border-radius:14px;
+        font-size:20px;
+    }
+
+    .login-message{
+        min-height:20px;
+        font-size:14px;
+    }
+
+    .encabezado{
+        margin-bottom:12px;
+    }
+
+    .logo img{
+        width:clamp(68px, 20vw, 92px);
+        border-radius:14px;
+    }
+
+    .refrescar-btn,
+    .girar-mapa-btn,
+    .app-nav-btn,
+    .inicio,
+    .logout-btn{
+        min-width:0;
+        width:100%;
+        height:50px !important;
+        min-height:50px;
+        padding:0 16px !important;
+        font-size:16px !important;
+        border-radius:14px !important;
+    }
+
+    .controles-plano{
+        gap:10px;
+        margin:0 auto 12px;
+    }
+
+    .controles-plano .girar-mapa-btn{
+        flex:1 1 180px;
+        max-width:260px;
+    }
+
+    .plano-scroll{
+        margin:0 -8px;
+        padding:6px 8px 14px;
+        overflow:auto;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    #mesas{
+        --mesa-ancho:74px;
+        --mesa-alto:64px;
+        column-gap:7px;
+        row-gap:6px;
+        padding:8px;
+        border-radius:18px;
+    }
+
+    .mesa-plano{
+        font-size:28px;
+        border-radius:14px;
+        padding:0 6px;
+    }
+
+    .mesa-plano.barra-plano{
+        font-size:22px;
+    }
+
+    .mesa-plano .observacion-mapa{
+        font-size:10px;
+    }
+
+    .plano-referencia{
+        font-size:11px;
+        border-radius:12px;
+        padding:6px;
+    }
+
+    .leyenda{
+        margin-top:16px;
+        font-size:16px;
+        display:flex;
+        justify-content:center;
+        gap:10px;
+        flex-wrap:wrap;
+    }
+
+    .leyenda span{
+        margin:0;
+    }
+
+    .menu-admin{
+        gap:10px;
+    }
+
+    .ventas-btn,
+    .historial-btn,
+    .productos-admin-btn,
+    .gastos-btn,
+    .cierre-btn,
+    .historial-cierres-btn{
+        width:calc(50% - 6px);
+        min-width:150px;
+        height:54px;
+        font-size:15px;
+        border-radius:15px;
+    }
+
+    .pedido-container,
+    .clientes-container,
+    .observacion-punto,
+    .total-mesa{
+        margin-top:14px;
+        padding:14px;
+        border-radius:18px;
+    }
+
+    .buscar-producto{
+        height:52px;
+        font-size:17px;
+        border-radius:13px;
+        padding:0 14px;
+        margin-bottom:14px;
+    }
+
+    .categorias-productos,
+    .venta-rapida{
+        gap:8px;
+        margin-bottom:16px;
+    }
+
+    .categoria-btn,
+    .venta-rapida-btn{
+        height:48px;
+        padding:0 12px;
+        border-radius:13px;
+        font-size:15px;
+        flex:1 1 auto;
+        min-width:96px;
+    }
+
+    .producto-btn{
+        min-height:58px;
+        padding:10px 12px;
+        font-size:16px;
+        border-radius:14px;
+    }
+
+    .cliente-card{
+        padding:16px;
+        min-height:64px;
+        font-size:20px;
+        border-radius:16px;
+    }
+
+    .cliente-fila{
+        gap:10px;
+    }
+
+    .eliminar-cliente{
+        width:58px;
+        height:64px;
+        font-size:20px;
+    }
+
+    .total-mesa h2{
+        font-size:clamp(34px, 11vw, 48px);
+    }
+
+    .guardar,
+    .cobrar,
+    .recibo-btn,
+    .recibo-mesa,
+    .acciones-volver .volver{
+        width:100%;
+        max-width:320px;
+        height:58px;
+        font-size:19px;
+        border-radius:16px;
+    }
+
+    .acciones,
+    .acciones-volver{
+        gap:12px;
+        margin-top:16px;
+    }
+
+    .selector-administrador-cierre select{
+        min-height:54px;
+        font-size:18px;
+        border-radius:15px;
+    }
+}
+
+@media (max-width: 480px){
+    body{
+        padding:10px;
+    }
+
+    .login-page{
+        padding:10px;
+    }
+
+    .login-panel{
+        padding:16px;
+        border-radius:20px;
+    }
+
+    .login-panel .logo img{
+        width:76px;
+    }
+
+    .login-panel h1{
+        font-size:31px;
+    }
+
+    .login-panel p{
+        font-size:15px;
+    }
+
+    .login-form{
+        margin-top:14px;
+        gap:8px;
+    }
+
+    .login-form input{
+        min-height:44px;
+        font-size:16px;
+    }
+
+    .login-submit{
+        height:48px;
+        font-size:18px;
+    }
+
+    #mesas{
+        --mesa-ancho:66px;
+        --mesa-alto:58px;
+        column-gap:6px;
+        row-gap:5px;
+    }
+
+    .mesa-plano{
+        font-size:24px;
+    }
+
+    .mesa-plano.barra-plano{
+        font-size:19px;
+    }
+
+    .plano-referencia{
+        font-size:10px;
+        padding:4px;
+    }
+
+    .ventas-btn,
+    .historial-btn,
+    .productos-admin-btn,
+    .gastos-btn,
+    .cierre-btn,
+    .historial-cierres-btn{
+        width:100%;
+    }
+
+    .categoria-btn,
+    .venta-rapida-btn{
+        min-width:calc(50% - 6px);
+        height:44px;
+        font-size:14px;
+    }
+
+    .producto-btn{
+        min-height:54px;
+        font-size:15px;
+    }
+
+    .observacion-fila{
+        gap:8px;
+    }
+
+    .observacion-fila input{
+        min-height:46px;
+        font-size:16px;
+    }
+}
