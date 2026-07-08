@@ -22,7 +22,7 @@ let temporizadorPedidoTiempoReal = null;
 let pedidoTiempoRealCargando = false;
 let pedidoTiempoRealPendiente = false;
 
-let categoriaSeleccionada = "Todos";
+let categoriaSeleccionada = "";
 
 let categoriasSupabase = [];
 let productosSupabase = [];
@@ -176,10 +176,31 @@ function mostrarProductosDisponibles(){
     let busqueda =
         normalizeText(document.getElementById("buscarProducto").value);
 
+    let tieneBusqueda =
+        busqueda.length > 0;
+
+    let tieneCategoriaSeleccionada =
+        categoriaSeleccionada !== "";
+
+    if(!tieneBusqueda && !tieneCategoriaSeleccionada){
+        let mensajeInicial =
+            document.createElement("p");
+
+        mensajeInicial.classList.add("mensaje-vacio");
+
+        mensajeInicial.innerHTML =
+            "Seleccione una categoría o busque un producto.";
+
+        contenedor.appendChild(mensajeInicial);
+
+        return;
+    }
+
     let productosFiltrados =
         productosSupabase.filter(function(producto){
 
             let coincideCategoria =
+                !tieneCategoriaSeleccionada ||
                 categoriaSeleccionada === "Todos" ||
                 producto.categoria === categoriaSeleccionada;
 
@@ -233,6 +254,27 @@ function filtrarProductos(){
     mostrarProductosDisponibles();
 }
 // Mesa list / totals / state utilities are provided by `utils.js` (obtenerClientesDinamicos, calcularTotalMesa, actualizarEstadoMesa, etc.)
+
+function actualizarTituloCliente(){
+    const titulo =
+        document.getElementById("tituloCliente");
+
+    if(!titulo){
+        return;
+    }
+
+    const etiqueta =
+        (tipoActualPedido === "barra" ? "Barra " : "Mesa ") +
+        mesaActual +
+        " - Cliente " +
+        clienteActual;
+
+    titulo.innerHTML =
+        etiqueta +
+        " <span class=\"total-titulo-cliente\">· $" +
+        total.toLocaleString() +
+        "</span>";
+}
 
 async function recargarPedidoDesdeSupabase(){
     try{
@@ -520,6 +562,8 @@ function actualizarPedido() {
 
     document.getElementById("total").innerHTML =
         "TOTAL: $" + total.toLocaleString();
+
+    actualizarTituloCliente();
 
     if(Object.keys(productos).length === 0){
         removeStorageItem(claveCliente(clienteActual));

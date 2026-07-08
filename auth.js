@@ -122,12 +122,16 @@
         const homeCandidates = Array.from(document.querySelectorAll("button")).filter(function(button){
             const onclick = button.getAttribute("onclick") || "";
             return onclick.indexOf("index.html") !== -1 &&
+                !button.classList.contains("pedido-sticky-home") &&
                 !button.classList.contains("inicio-recibo") &&
                 !button.closest(".menu-admin");
         });
 
         let homeButton = null;
-        if(!isIndexPage()){
+        const pedidoStickyHome =
+            document.querySelector(".pedido-sticky-home");
+
+        if(!isIndexPage() && !pedidoStickyHome){
             homeButton = homeCandidates[0] || buildHomeButton();
             homeButton.classList.add("app-nav-btn", "app-home-btn");
             left.appendChild(homeButton);
