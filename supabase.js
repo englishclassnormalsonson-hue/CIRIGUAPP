@@ -235,6 +235,15 @@ async function eliminarProductoSupabase(producto){
             .eq("id", producto.id);
 
     if(error){
+        console.error("Supabase rechazó DELETE en productos.", {
+            query: "productos.delete().eq('id', producto.id)",
+            producto_id: producto.id,
+            producto_nombre: producto.nombre,
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint
+        });
         throw error;
     }
 

@@ -524,41 +524,75 @@ async function refrescarPantallaPrincipal(boton){
 
 ciriguaAuthReady.then(function(){
     mostrarMesas();
-
-    if(supabaseClient && typeof supabaseClient.channel === "function"){
-        supabaseClient
-            .channel("cirigua-mesas")
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "mesas"
-            }, function(){
-                mostrarMesas();
-            })
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "puntos_atencion"
-            }, function(){
-                mostrarMesas();
-            })
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "ocupaciones_mesa"
-            }, function(){
-                mostrarMesas();
-            })
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "clientes_mesa"
-            }, function(){
-                mostrarMesas();
-            })
-            .subscribe();
-    }
+    suscribirMapaTiempoReal();
 });
+
+let canalMapaTiempoReal = null;
+let temporizadorMapaTiempoReal = null;
+let mapaTiempoRealCargando = false;
+let mapaTiempoRealPendiente = false;
+
+function programarActualizacionMapaTiempoReal(){
+    clearTimeout(temporizadorMapaTiempoReal);
+    temporizadorMapaTiempoReal = setTimeout(actualizarMapaTiempoReal, 120);
+}
+
+async function actualizarMapaTiempoReal(){
+    if(mapaTiempoRealCargando){
+        mapaTiempoRealPendiente = true;
+        return;
+    }
+
+    mapaTiempoRealCargando = true;
+    try{
+        await mostrarMesas();
+    }finally{
+        mapaTiempoRealCargando = false;
+        if(mapaTiempoRealPendiente){
+            mapaTiempoRealPendiente = false;
+            programarActualizacionMapaTiempoReal();
+        }
+    }
+}
+
+function suscribirMapaTiempoReal(){
+    if(canalMapaTiempoReal || !supabaseClient || typeof supabaseClient.channel !== "function"){
+        return;
+    }
+
+    canalMapaTiempoReal = supabaseClient
+        .channel("cirigua-mapa-tiempo-real")
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "mesas"
+        }, programarActualizacionMapaTiempoReal)
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "puntos_atencion"
+        }, programarActualizacionMapaTiempoReal)
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "ocupaciones_mesa"
+        }, programarActualizacionMapaTiempoReal)
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "clientes_mesa"
+        }, programarActualizacionMapaTiempoReal)
+        .subscribe(function(estado){
+            if(estado === "CHANNEL_ERROR" || estado === "TIMED_OUT"){
+                const canalAnterior = canalMapaTiempoReal;
+                canalMapaTiempoReal = null;
+                if(supabaseClient && typeof supabaseClient.removeChannel === "function"){
+                    supabaseClient.removeChannel(canalAnterior);
+                }
+                setTimeout(suscribirMapaTiempoReal, 1500);
+            }
+        });
+}
 
 </script>
 <script src="pwa.js"></script>

@@ -17,6 +17,10 @@ parametros.get("cliente") || 1;
 
 let productos = {};
 let sincronizandoPedidoRemoto = false;
+let canalPedidoTiempoReal = null;
+let temporizadorPedidoTiempoReal = null;
+let pedidoTiempoRealCargando = false;
+let pedidoTiempoRealPendiente = false;
 
 let categoriaSeleccionada = "Todos";
 
@@ -245,6 +249,80 @@ async function recargarPedidoDesdeSupabase(){
     }catch(error){
         console.error("Error sincronizando pedido desde Supabase:", error);
     }
+}
+
+function eventoPedidoCorresponde(payload){
+    if(!payload){
+        return true;
+    }
+
+    const registro = payload.new || payload.old || {};
+
+    if(registro.tipo_punto && normalizarTipoPuntoCirigua(registro.tipo_punto) !== tipoActualPedido){
+        return false;
+    }
+
+    if(registro.mesa_numero !== undefined && Number(registro.mesa_numero) !== Number(mesaActual)){
+        return false;
+    }
+
+    if(registro.numero_cliente !== undefined && Number(registro.numero_cliente) !== Number(clienteActual)){
+        return false;
+    }
+
+    return true;
+}
+
+function programarRecargaPedidoTiempoReal(){
+    clearTimeout(temporizadorPedidoTiempoReal);
+    temporizadorPedidoTiempoReal = setTimeout(recargarPedidoTiempoReal, 100);
+}
+
+async function recargarPedidoTiempoReal(){
+    if(pedidoTiempoRealCargando){
+        pedidoTiempoRealPendiente = true;
+        return;
+    }
+
+    pedidoTiempoRealCargando = true;
+    try{
+        await recargarPedidoDesdeSupabase();
+    }finally{
+        pedidoTiempoRealCargando = false;
+        if(pedidoTiempoRealPendiente){
+            pedidoTiempoRealPendiente = false;
+            programarRecargaPedidoTiempoReal();
+        }
+    }
+}
+
+function suscribirPedidoTiempoReal(){
+    if(canalPedidoTiempoReal || !supabaseClient || typeof supabaseClient.channel !== "function"){
+        return;
+    }
+
+    canalPedidoTiempoReal = supabaseClient
+        .channel("cirigua-pedido-" + tipoActualPedido + "-" + mesaActual + "-" + clienteActual)
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "clientes_mesa",
+            filter: "mesa_numero=eq." + Number(mesaActual)
+        }, function(payload){
+            if(eventoPedidoCorresponde(payload)){
+                programarRecargaPedidoTiempoReal();
+            }
+        })
+        .subscribe(function(estado){
+            if(estado === "CHANNEL_ERROR" || estado === "TIMED_OUT"){
+                const canalAnterior = canalPedidoTiempoReal;
+                canalPedidoTiempoReal = null;
+                if(supabaseClient && typeof supabaseClient.removeChannel === "function"){
+                    supabaseClient.removeChannel(canalAnterior);
+                }
+                setTimeout(suscribirPedidoTiempoReal, 1500);
+            }
+        });
 }
 
 function aplicarPedidoRemoto(productosRemotos){
@@ -536,25 +614,7 @@ window.onload = async function () {
 
     actualizarPedido();
 
-    if(supabaseClient && typeof supabaseClient.channel === "function"){
-        supabaseClient
-            .channel("cirigua-pedido-" + tipoActualPedido + "-" + mesaActual + "-" + clienteActual)
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "clientes_mesa",
-                filter: "mesa_numero=eq." + Number(mesaActual)
-            }, function(payload){
-                if(payload && payload.new && payload.new.numero_cliente !== undefined && Number(payload.new.numero_cliente) !== Number(clienteActual)){
-                    return;
-                }
-                if(payload && payload.old && payload.old.numero_cliente !== undefined && Number(payload.old.numero_cliente) !== Number(clienteActual)){
-                    return;
-                }
-                recargarPedidoDesdeSupabase();
-            })
-            .subscribe();
-    }
+    suscribirPedidoTiempoReal();
 
 }
 

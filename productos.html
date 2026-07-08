@@ -521,7 +521,33 @@ function eliminarProductoDefinitivo(boton, id){
 
             console.error("Error eliminando producto en Supabase:", error);
 
-            alert("No se pudo eliminar el producto.");
+            let detalleError =
+                [
+                    error && error.code ? "Código: " + error.code : "",
+                    error && error.message ? "Mensaje: " + error.message : "",
+                    error && error.details ? "Detalle: " + error.details : "",
+                    error && error.hint ? "Ayuda: " + error.hint : ""
+                ].filter(function(linea){
+                    return linea;
+                }).join("\n");
+
+            if(error && (error.code === "42501" || /row-level security|permission denied/i.test(error.message || ""))){
+                alert(
+                    "No se pudo eliminar el producto por permisos de Supabase.\n\n" +
+                    "Falta permiso o política DELETE para productos.\n\n" +
+                    detalleError
+                );
+            }else if(error && error.code === "23503"){
+                alert(
+                    "No se pudo eliminar el producto porque otra tabla lo referencia.\n\n" +
+                    detalleError
+                );
+            }else{
+                alert(
+                    "No se pudo eliminar el producto.\n\n" +
+                    (detalleError || "Revise la consola para ver el error real.")
+                );
+            }
 
             return false;
 

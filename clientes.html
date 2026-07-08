@@ -627,40 +627,106 @@ async function guardarObservacionPuntoActual(boton){
 
 ciriguaAuthReady.then(function(){
     iniciarClientes();
-
-    if(supabaseClient && typeof supabaseClient.channel === "function"){
-        supabaseClient
-            .channel("cirigua-clientes-mesa-" + mesaActual)
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "clientes_mesa",
-                filter: "mesa_numero=eq." + Number(mesaActual)
-            }, function(){
-                iniciarClientes();
-            })
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "puntos_atencion",
-                filter: "numero=eq." + Number(mesaActual)
-            }, function(payload){
-                if(payload && payload.new && normalizarTipoPuntoCirigua(payload.new.tipo) !== tipoPuntoActual){
-                    return;
-                }
-                iniciarClientes();
-            })
-            .on("postgres_changes", {
-                event: "*",
-                schema: "public",
-                table: "ocupaciones_mesa",
-                filter: "mesa_numero=eq." + Number(mesaActual)
-            }, function(){
-                iniciarClientes();
-            })
-            .subscribe();
-    }
+    suscribirClientesTiempoReal();
 });
+
+let canalClientesTiempoReal = null;
+let temporizadorClientesTiempoReal = null;
+let clientesTiempoRealCargando = false;
+let clientesTiempoRealPendiente = false;
+
+function registroEventoPunto(payload){
+    if(!payload){
+        return {};
+    }
+    return payload.new || payload.old || {};
+}
+
+function eventoCorrespondeAPuntoActual(payload, campoTipo){
+    const registro = registroEventoPunto(payload);
+    if(registro[campoTipo] && normalizarTipoPuntoCirigua(registro[campoTipo]) !== tipoPuntoActual){
+        return false;
+    }
+    if(registro.mesa_numero !== undefined && Number(registro.mesa_numero) !== Number(mesaActual)){
+        return false;
+    }
+    if(registro.numero !== undefined && Number(registro.numero) !== Number(mesaActual)){
+        return false;
+    }
+    return true;
+}
+
+function programarClientesTiempoReal(){
+    clearTimeout(temporizadorClientesTiempoReal);
+    temporizadorClientesTiempoReal = setTimeout(actualizarClientesTiempoReal, 120);
+}
+
+async function actualizarClientesTiempoReal(){
+    if(clientesTiempoRealCargando){
+        clientesTiempoRealPendiente = true;
+        return;
+    }
+
+    clientesTiempoRealCargando = true;
+    try{
+        await iniciarClientes();
+    }finally{
+        clientesTiempoRealCargando = false;
+        if(clientesTiempoRealPendiente){
+            clientesTiempoRealPendiente = false;
+            programarClientesTiempoReal();
+        }
+    }
+}
+
+function suscribirClientesTiempoReal(){
+    if(canalClientesTiempoReal || !supabaseClient || typeof supabaseClient.channel !== "function"){
+        return;
+    }
+
+    canalClientesTiempoReal = supabaseClient
+        .channel("cirigua-clientes-" + tipoPuntoActual + "-" + mesaActual)
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "clientes_mesa",
+            filter: "mesa_numero=eq." + Number(mesaActual)
+        }, function(payload){
+            if(eventoCorrespondeAPuntoActual(payload, "tipo_punto")){
+                programarClientesTiempoReal();
+            }
+        })
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "puntos_atencion",
+            filter: "numero=eq." + Number(mesaActual)
+        }, function(payload){
+            if(eventoCorrespondeAPuntoActual(payload, "tipo")){
+                programarClientesTiempoReal();
+            }
+        })
+        .on("postgres_changes", {
+            event: "*",
+            schema: "public",
+            table: "ocupaciones_mesa",
+            filter: "mesa_numero=eq." + Number(mesaActual)
+        }, function(payload){
+            if(eventoCorrespondeAPuntoActual(payload, "tipo_punto")){
+                programarClientesTiempoReal();
+            }
+        })
+        .subscribe(function(estado){
+            if(estado === "CHANNEL_ERROR" || estado === "TIMED_OUT"){
+                const canalAnterior = canalClientesTiempoReal;
+                canalClientesTiempoReal = null;
+                if(supabaseClient && typeof supabaseClient.removeChannel === "function"){
+                    supabaseClient.removeChannel(canalAnterior);
+                }
+                setTimeout(suscribirClientesTiempoReal, 1500);
+            }
+        });
+}
 
 </script>
 

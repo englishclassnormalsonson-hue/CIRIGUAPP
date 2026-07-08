@@ -1514,7 +1514,7 @@ revoke all privileges on all sequences in schema public from anon;
 grant usage, select on all sequences in schema public to authenticated;
 
 grant select, insert, update on public.categorias to authenticated;
-grant select, insert, update on public.productos to authenticated;
+grant select, insert, update, delete on public.productos to authenticated;
 grant select, update on public.mesas to authenticated;
 grant select, insert, update, delete on public.clientes_mesa to authenticated;
 grant select, insert, update on public.ventas to authenticated;
@@ -1590,6 +1590,7 @@ create policy cirigua_auth_update on public.categorias for update to authenticat
 create policy cirigua_auth_select on public.productos for select to authenticated using (true);
 create policy cirigua_auth_insert on public.productos for insert to authenticated with check (true);
 create policy cirigua_auth_update on public.productos for update to authenticated using (true) with check (true);
+create policy cirigua_auth_delete on public.productos for delete to authenticated using (true);
 
 create policy cirigua_auth_select on public.mesas for select to authenticated using (true);
 create policy cirigua_auth_update on public.mesas for update to authenticated using (true) with check (true);
