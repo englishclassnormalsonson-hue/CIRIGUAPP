@@ -388,66 +388,6 @@ function aplicarPedidoRemoto(productosRemotos){
     }
 }
 
-function clonarProductosPedidoActual(){
-    return JSON.parse(JSON.stringify(productos || {}));
-}
-
-function aplicarOperacionLocalPedido(accion, nombre, precio, cantidad){
-    let productosLocales =
-        clonarProductosPedidoActual();
-
-    let cantidadOperacion =
-        Number(cantidad || 1);
-
-    if(accion === "agregar_producto"){
-        let actual =
-            productosLocales[nombre] || {
-                precio: Number(precio),
-                cantidad: 0
-            };
-
-        actual.precio = Number(precio);
-        actual.cantidad = Number(actual.cantidad || 0) + cantidadOperacion;
-        productosLocales[nombre] = actual;
-    }
-
-    if(accion === "quitar_producto" && productosLocales[nombre]){
-        let actual =
-            productosLocales[nombre];
-
-        actual.cantidad = Number(actual.cantidad || 0) - cantidadOperacion;
-
-        if(actual.cantidad <= 0){
-            delete productosLocales[nombre];
-        }else{
-            productosLocales[nombre] = actual;
-        }
-    }
-
-    aplicarPedidoRemoto(productosLocales);
-}
-
-function puedeEncolarPedidoOffline(){
-    return window.ciriguaOffline &&
-        typeof window.ciriguaOffline.estaSinConexion === "function" &&
-        typeof window.ciriguaOffline.encolarOperacionPedido === "function" &&
-        window.ciriguaOffline.estaSinConexion();
-}
-
-async function encolarOperacionPedidoOffline(accion, nombre, precio, cantidad){
-    await window.ciriguaOffline.encolarOperacionPedido({
-        accion: accion,
-        tipo_punto: tipoActualPedido,
-        punto_numero: mesaActual,
-        numero_cliente: clienteActual,
-        nombre: nombre,
-        precio: Number(precio || 0),
-        cantidad: Number(cantidad || 1)
-    });
-
-    aplicarOperacionLocalPedido(accion, nombre, precio, cantidad);
-}
-
 function limpiarCliente(numeroCliente){
 
     removeStorageItem(claveCliente(numeroCliente));
@@ -484,21 +424,6 @@ function limpiarCliente(numeroCliente){
 }
 
 async function agregarProducto(nombre, precio) {
-    if(puedeEncolarPedidoOffline()){
-        try{
-            await encolarOperacionPedidoOffline(
-                "agregar_producto",
-                nombre,
-                precio,
-                1
-            );
-        }catch(error){
-            console.error("No se pudo guardar la operación offline:", error);
-            alert("No se pudo guardar el cambio offline. Intente nuevamente.");
-        }
-        return;
-    }
-
     try{
         let productosRemotos =
             await agregarProductoClienteSupabase(
@@ -527,21 +452,6 @@ async function quitarProducto(nombre) {
     }
 
     if (productos[nombre]) {
-        if(puedeEncolarPedidoOffline()){
-            try{
-                await encolarOperacionPedidoOffline(
-                    "quitar_producto",
-                    nombre,
-                    productos[nombre].precio,
-                    1
-                );
-            }catch(error){
-                console.error("No se pudo guardar la operación offline:", error);
-                alert("No se pudo guardar el cambio offline. Intente nuevamente.");
-            }
-            return;
-        }
-
         try{
             let productosRemotos =
                 await quitarProductoClienteSupabase(
@@ -751,10 +661,6 @@ window.onload = async function () {
     suscribirPedidoTiempoReal();
 
 }
-
-window.addEventListener("cirigua:offline-sync-complete", function(){
-    recargarPedidoDesdeSupabase();
-});
 
 // Removed guardarPedido: pedidos se guardan automáticamente en localStorage
 

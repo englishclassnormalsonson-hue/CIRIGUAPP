@@ -304,28 +304,18 @@ async function guardarPedidoClienteSupabase(mesa, numeroCliente, productos, tipo
     return dataRpc;
 }
 
-async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, precio, cantidad, tipoPunto, operationId){
+async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, precio, cantidad, tipoPunto){
     await asegurarSesionCirigua();
 
-    const rpcNombre = operationId
-        ? "agregar_producto_punto_cirigua_idem"
-        : "agregar_producto_punto_cirigua";
-
-    const parametros = {
-        p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
-        p_numero: Number(mesa),
-        p_cliente: Number(numeroCliente),
-        p_nombre: String(nombre || ""),
-        p_precio: Number(precio),
-        p_cantidad: Number(cantidad || 1)
-    };
-
-    if(operationId){
-        parametros.p_operation_id = String(operationId);
-    }
-
     const { data, error } = await supabaseClient
-        .rpc(rpcNombre, parametros);
+        .rpc("agregar_producto_punto_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(mesa),
+            p_cliente: Number(numeroCliente),
+            p_nombre: String(nombre || ""),
+            p_precio: Number(precio),
+            p_cantidad: Number(cantidad || 1)
+        });
 
     if(error){
         throw error;
@@ -334,27 +324,17 @@ async function agregarProductoClienteSupabase(mesa, numeroCliente, nombre, preci
     return data && data.productos ? data.productos : {};
 }
 
-async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantidad, tipoPunto, operationId){
+async function quitarProductoClienteSupabase(mesa, numeroCliente, nombre, cantidad, tipoPunto){
     await asegurarSesionCirigua();
 
-    const rpcNombre = operationId
-        ? "quitar_producto_punto_cirigua_idem"
-        : "quitar_producto_punto_cirigua";
-
-    const parametros = {
-        p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
-        p_numero: Number(mesa),
-        p_cliente: Number(numeroCliente),
-        p_nombre: String(nombre || ""),
-        p_cantidad: Number(cantidad || 1)
-    };
-
-    if(operationId){
-        parametros.p_operation_id = String(operationId);
-    }
-
     const { data, error } = await supabaseClient
-        .rpc(rpcNombre, parametros);
+        .rpc("quitar_producto_punto_cirigua", {
+            p_tipo: obtenerTipoPuntoSupabase(tipoPunto),
+            p_numero: Number(mesa),
+            p_cliente: Number(numeroCliente),
+            p_nombre: String(nombre || ""),
+            p_cantidad: Number(cantidad || 1)
+        });
 
     if(error){
         throw error;
