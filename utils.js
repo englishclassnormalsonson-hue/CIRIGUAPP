@@ -444,6 +444,11 @@ function ejecutarAccionCritica(boton, accion){
     if(boton && boton.disabled){
         return;
     }
+    if(window.ciriguaOffline &&
+        typeof window.ciriguaOffline.requiereConexionCritica === "function" &&
+        window.ciriguaOffline.requiereConexionCritica()){
+        return false;
+    }
     if(boton){
         boton.disabled = true;
     }

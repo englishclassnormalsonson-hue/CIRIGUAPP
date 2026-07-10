@@ -1,4 +1,4 @@
-const CACHE_VERSION = "ciriguapp-static-v22";
+const CACHE_VERSION = "ciriguapp-static-v23";
 
 const STATIC_ASSETS = [
     "./",
@@ -21,6 +21,7 @@ const STATIC_ASSETS = [
     "./utils.js",
     "./supabase.js",
     "./auth.js",
+    "./offline.js",
     "./pwa.js",
     "./ventas.js",
     "./script.js",
@@ -33,6 +34,10 @@ const STATIC_ASSETS = [
     "./icons/apple-touch-icon.png"
 ];
 
+const STATIC_LIBRARY_HOSTS = [
+    "cdn.jsdelivr.net"
+];
+
 function isSupabaseRequest(url){
     return url.hostname.endsWith(".supabase.co");
 }
@@ -43,8 +48,29 @@ function isStaticAsset(requestUrl){
     }
 
     return STATIC_ASSETS.some(function(asset){
-        return new URL(asset, self.location).href === requestUrl.href;
+        const assetUrl = new URL(asset, self.location);
+        return assetUrl.origin === requestUrl.origin &&
+            assetUrl.pathname === requestUrl.pathname;
     });
+}
+
+function isStaticLibrary(requestUrl){
+    return STATIC_LIBRARY_HOSTS.indexOf(requestUrl.hostname) !== -1 &&
+        requestUrl.pathname.indexOf("/@supabase/supabase-js@2") !== -1;
+}
+
+function responderNetworkFirst(request){
+    return fetch(request)
+        .then(function(response){
+            const copy = response.clone();
+            caches.open(CACHE_VERSION).then(function(cache){
+                cache.put(request, copy);
+            });
+            return response;
+        })
+        .catch(function(){
+            return caches.match(request);
+        });
 }
 
 self.addEventListener("install", function(event){
@@ -84,21 +110,14 @@ self.addEventListener("fetch", function(event){
         return;
     }
 
+    if(isStaticLibrary(requestUrl)){
+        event.respondWith(responderNetworkFirst(request));
+        return;
+    }
+
     if(!isStaticAsset(requestUrl)){
         return;
     }
 
-    event.respondWith(
-        fetch(request)
-            .then(function(response){
-                const copy = response.clone();
-                caches.open(CACHE_VERSION).then(function(cache){
-                    cache.put(request, copy);
-                });
-                return response;
-            })
-            .catch(function(){
-                return caches.match(request);
-            })
-    );
+    event.respondWith(responderNetworkFirst(request));
 });
